@@ -45,7 +45,7 @@ def inject_css() -> None:
             --cap-muted: #6B7280;
             --cap-line: #E6E7E9;
             --cap-soft: #F7F8F8;
-            --cap-green: #2F6B4F;
+            --cap-green: #111111;
             --primary-color: #111111;
         }
 
@@ -304,6 +304,10 @@ def inject_css() -> None:
 
         div[data-testid="stAlert"] {
             border-radius: 12px;
+        }
+
+        [data-testid="InputInstructions"] {
+            display: none !important;
         }
 
         [data-testid="stForm"] {
@@ -857,10 +861,7 @@ def result_chart(scores: dict[str, float], winner: str | None) -> go.Figure:
     ordered = sorted(scores.items(), key=lambda item: item[1])
     platforms = [item[0] for item in ordered]
     values = [item[1] for item in ordered]
-    colors = [
-        "#A8D5BA" if name == winner else "#D9DDE3"
-        for name in platforms
-    ]
+    colors = ["#111111" if name == winner else "#D9DDE3" for name in platforms]
 
     figure = go.Figure(
         go.Bar(
@@ -931,11 +932,17 @@ def result_page() -> None:
 
     c1, c2 = st.columns(2)
     with c1:
+        reliability_notes = result.get("reliability_notes", [])
+        if reliability_notes:
+            reliability_detail = "À préciser : " + " · ".join(reliability_notes) + "."
+        else:
+            reliability_detail = "Persona, besoins, réseaux et sources documentés."
         st.markdown(
             f"""
             <div class="cap-card">
-                <div class="cap-card-label">Fiabilité des informations</div>
+                <div class="cap-card-label">Fiabilité des données sur la cible</div>
                 <div class="cap-card-value">{result["reliability_label"]} · {result["reliability"]:.0f} %</div>
+                <div class="cap-note" style="margin-top:.45rem">{reliability_detail}</div>
             </div>
             """,
             unsafe_allow_html=True,

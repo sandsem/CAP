@@ -139,6 +139,30 @@ def calculate_reliability(answers: dict) -> tuple[float, str]:
     return score, label
 
 
+def build_reliability_notes(answers: dict) -> list[str]:
+    notes = []
+    if answers.get("q1") == "Partiellement":
+        notes.append("persona à finaliser")
+
+    if answers.get("q3") == "Partiellement":
+        notes.append("besoins à compléter")
+    elif answers.get("q3") == "Non":
+        notes.append("besoins à recenser")
+
+    if not any(network in PLATFORM_NAMES for network in answers.get("q4", [])):
+        notes.append("réseaux de la cible à documenter")
+
+    sources = [
+        source for source in answers.get("q5", []) if source != "Aucune source"
+    ]
+    if len(sources) == 1:
+        notes.append("seconde source à ajouter")
+    elif not sources:
+        notes.append("sources à documenter")
+
+    return notes
+
+
 def calculate_readiness(answers: dict) -> tuple[float, str]:
     time_score = {
         "Moins de 2 h": 8,
@@ -216,6 +240,9 @@ def build_alerts(
     unresolved: bool,
 ) -> list[str]:
     alerts = []
+    if answers.get("q1") == "Partiellement":
+        alerts.append("Finaliser le persona de la clientèle recherchée.")
+
     if answers.get("q3") == "Non":
         alerts.append("Recenser les besoins prioritaires de la cible.")
     elif answers.get("q3") == "Partiellement":
@@ -262,6 +289,7 @@ def build_alerts(
 def evaluate(answers: dict) -> dict:
     scores, winner, unresolved = calculate_platform_scores(answers)
     reliability, reliability_label = calculate_reliability(answers)
+    reliability_notes = build_reliability_notes(answers)
     readiness, readiness_label = calculate_readiness(answers)
     alerts = build_alerts(answers, reliability, readiness, unresolved)
     return {
@@ -270,6 +298,7 @@ def evaluate(answers: dict) -> dict:
         "unresolved": unresolved,
         "reliability": reliability,
         "reliability_label": reliability_label,
+        "reliability_notes": reliability_notes,
         "readiness": readiness,
         "readiness_label": readiness_label,
         "alerts": alerts,
