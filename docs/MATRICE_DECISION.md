@@ -21,10 +21,10 @@ les deux premiers scores sont séparés de 1,5 point au maximum :
 
 | Situation du compte | Bonus maximal |
 |---|---:|
-| Aucun ou inactif | 0 |
-| Actif | 0 |
-| Audience qualifiée | 1,5 |
-| Contacts générés | 2 |
+| Aucun compte ou compte inactif | 0 |
+| Compte actif | 0 |
+| Audience cible engagée | 1,5 |
+| Contacts obtenus | 2 |
 
 Si l'égalité subsiste, CAP ne choisit pas arbitrairement. Il demande au cabinet
 de préciser sa cible ou les réseaux qu'elle utilise.

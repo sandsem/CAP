@@ -18,6 +18,9 @@ Le résultat distingue :
 - la fiabilité des informations renseignées ;
 - le niveau de préparation du cabinet.
 
+Un écran récapitulatif permet de relire et de modifier les réponses avant de
+valider le diagnostic.
+
 Les réponses restent uniquement dans la session Streamlit.
 
 ## Lancement local

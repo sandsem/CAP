@@ -44,12 +44,52 @@ OBJECTIVE_OPTIONS = [
     "Non défini",
 ]
 
+INDICATOR_OPTIONS = {
+    "Visibilité / notoriété": [
+        "Portée",
+        "Impressions",
+        "Vues",
+        "Visites du profil",
+        "Nouveaux abonnés",
+        "Autre indicateur",
+    ],
+    "Acquisition": [
+        "Prises de contact qualifiées",
+        "Rendez-vous obtenus",
+        "Lettres de mission signées",
+        "Chiffre d’affaires généré",
+        "Autre indicateur",
+    ],
+    "Expertise / conseil": [
+        "Enregistrements",
+        "Partages",
+        "Temps de visionnage",
+        "Demandes de conseil",
+        "Autre indicateur",
+    ],
+    "Recrutement": [
+        "Candidatures reçues",
+        "Candidatures qualifiées",
+        "Entretiens obtenus",
+        "Recrutements finalisés",
+        "Autre indicateur",
+    ],
+    "Fidélisation": [
+        "Interactions clients",
+        "Questions reçues",
+        "Missions complémentaires",
+        "Taux de rétention",
+        "Autre indicateur",
+    ],
+    "Autre": ["Autre indicateur"],
+}
+
 PLATFORM_STATUS_OPTIONS = [
-    "Aucun",
-    "Inactif",
-    "Actif",
-    "Audience qualifiée",
-    "Contacts générés",
+    "Aucun compte",
+    "Compte inactif",
+    "Compte actif",
+    "Audience cible engagée",
+    "Contacts obtenus",
 ]
 
 TIME_OPTIONS = [
@@ -251,9 +291,9 @@ COHERENCE_WEIGHTS = {
 }
 
 STATUS_TIE_BREAK = {
-    "Aucun": 0,
-    "Inactif": 0,
-    "Actif": 0,
-    "Audience qualifiée": 1.5,
-    "Contacts générés": 2.0,
+    "Aucun compte": 0,
+    "Compte inactif": 0,
+    "Compte actif": 0,
+    "Audience cible engagée": 1.5,
+    "Contacts obtenus": 2.0,
 }

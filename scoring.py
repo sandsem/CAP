@@ -71,8 +71,12 @@ def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | No
     # ouverture de compte ou un compte inactif ne modifie pas la recommandation.
     if top_score - second_score <= 1.5:
         statuses = answers.get("q7", {})
-        top_bonus = STATUS_TIE_BREAK.get(statuses.get(top_name, "Aucun"), 0)
-        second_bonus = STATUS_TIE_BREAK.get(statuses.get(second_name, "Aucun"), 0)
+        top_bonus = STATUS_TIE_BREAK.get(
+            statuses.get(top_name, "Aucun compte"), 0
+        )
+        second_bonus = STATUS_TIE_BREAK.get(
+            statuses.get(second_name, "Aucun compte"), 0
+        )
         if top_bonus != second_bonus:
             scores[top_name] = round(scores[top_name] + top_bonus, 1)
             scores[second_name] = round(scores[second_name] + second_bonus, 1)

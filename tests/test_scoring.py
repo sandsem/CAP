@@ -15,10 +15,10 @@ def base_answers():
         "target": "2",
         "deadline": "3 mois",
         "q7": {
-            "Facebook": "Aucun",
-            "Instagram": "Inactif",
-            "TikTok": "Aucun",
-            "YouTube": "Aucun",
+            "Facebook": "Aucun compte",
+            "Instagram": "Compte inactif",
+            "TikTok": "Aucun compte",
+            "YouTube": "Aucun compte",
         },
         "q8": "6 à 10 h",
         "q9": {
@@ -82,7 +82,7 @@ class ScoringTests(unittest.TestCase):
 
     def test_existing_inactive_account_does_not_decide(self):
         answers = base_answers()
-        answers["q7"]["Facebook"] = "Inactif"
+        answers["q7"]["Facebook"] = "Compte inactif"
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
 
@@ -106,10 +106,10 @@ class ScoringTests(unittest.TestCase):
         answers["q6"] = "Autre"
         answers["q8"] = "Non évalué"
         answers["q7"] = {
-            "Facebook": "Aucun",
-            "Instagram": "Aucun",
-            "TikTok": "Aucun",
-            "YouTube": "Aucun",
+            "Facebook": "Aucun compte",
+            "Instagram": "Aucun compte",
+            "TikTok": "Aucun compte",
+            "YouTube": "Aucun compte",
         }
         result = evaluate(answers)
         self.assertIsNone(result["winner"])
