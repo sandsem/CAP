@@ -94,32 +94,9 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     if winner:
         story.append(Paragraph(f"Indice de cohérence : {score:.0f} %", subtitle))
 
-    score_rows = [["Plateforme", "Indice de cohérence"]]
-    for platform, value in sorted(
-        result["scores"].items(), key=lambda item: item[1], reverse=True
-    ):
-        score_rows.append([platform, f"{value:.0f} %"])
-    score_table = Table(score_rows, colWidths=[105 * mm, 45 * mm])
-    score_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111111")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
-                ("FONTNAME", (0, 1), (-1, -1), FONT_REGULAR),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F4F6F6")]),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#D9DCDD")),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-            ]
-        )
-    )
     story.extend(
         [
             Spacer(1, 8),
-            score_table,
             Paragraph("Données de décision", heading),
         ]
     )
@@ -154,7 +131,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     story.append(Paragraph("Qualité du diagnostic", heading))
     quality_rows = [
         [
-            "Fiabilité des informations",
+            "Fiabilité des données sur la cible",
             f"{result['reliability_label']} - {result['reliability']:.0f} %",
         ],
         [

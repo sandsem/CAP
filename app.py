@@ -1,7 +1,6 @@
 from pathlib import Path
 from html import escape
 
-import plotly.graph_objects as go
 import streamlit as st
 
 from config import (
@@ -306,7 +305,8 @@ def inject_css() -> None:
             border-radius: 12px;
         }
 
-        [data-testid="InputInstructions"] {
+        [data-testid="InputInstructions"],
+        [data-testid="stTextInput"] > span:last-child {
             display: none !important;
         }
 
@@ -857,41 +857,6 @@ def review_page() -> None:
         navigate("result")
 
 
-def result_chart(scores: dict[str, float], winner: str | None) -> go.Figure:
-    ordered = sorted(scores.items(), key=lambda item: item[1])
-    platforms = [item[0] for item in ordered]
-    values = [item[1] for item in ordered]
-    colors = ["#111111" if name == winner else "#D9DDE3" for name in platforms]
-
-    figure = go.Figure(
-        go.Bar(
-            x=values,
-            y=platforms,
-            orientation="h",
-            marker=dict(color=colors, line=dict(width=0)),
-            text=[f"{value:.0f} %" for value in values],
-            textposition="outside",
-            cliponaxis=False,
-            hovertemplate="%{y} : %{x:.0f} %<extra></extra>",
-        )
-    )
-    figure.update_layout(
-        height=310,
-        margin=dict(l=5, r=45, t=15, b=15),
-        paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FFFFFF",
-        showlegend=False,
-        xaxis=dict(range=[0, 108], visible=False, fixedrange=True),
-        yaxis=dict(
-            title=None,
-            fixedrange=True,
-            tickfont=dict(color="#111111", size=13),
-        ),
-        font=dict(family="Inter, Arial, sans-serif"),
-    )
-    return figure
-
-
 def result_page() -> None:
     result = st.session_state.result
     answers = st.session_state.answers
@@ -924,17 +889,11 @@ def result_page() -> None:
             unsafe_allow_html=True,
         )
 
-    st.plotly_chart(
-        result_chart(result["scores"], result["winner"]),
-        width="stretch",
-        config={"displayModeBar": False, "staticPlot": True},
-    )
-
     c1, c2 = st.columns(2)
     with c1:
         reliability_notes = result.get("reliability_notes", [])
         if reliability_notes:
-            reliability_detail = "À préciser : " + " · ".join(reliability_notes) + "."
+            reliability_detail = " · ".join(reliability_notes) + "."
         else:
             reliability_detail = "Persona, besoins, réseaux et sources documentés."
         st.markdown(
