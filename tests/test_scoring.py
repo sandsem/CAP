@@ -1,5 +1,6 @@
 import unittest
 
+from config import COHERENCE_WEIGHTS
 from scoring import evaluate
 
 
@@ -41,6 +42,17 @@ def base_answers():
 
 
 class ScoringTests(unittest.TestCase):
+    def test_four_decision_dimensions_have_equal_weight(self):
+        self.assertEqual(
+            COHERENCE_WEIGHTS,
+            {
+                "profile": 0.25,
+                "target_networks": 0.25,
+                "objective": 0.25,
+                "time": 0.25,
+            },
+        )
+
     def test_visib_recommends_instagram(self):
         result = evaluate(base_answers())
         self.assertEqual(result["winner"], "Instagram")
@@ -98,6 +110,62 @@ class ScoringTests(unittest.TestCase):
         result = evaluate(answers)
         self.assertLess(result["reliability"], 75)
         self.assertEqual(result["reliability_label"], "Informations partielles")
+
+    def test_target_network_does_not_override_other_criteria(self):
+        answers = base_answers()
+        answers["q2"] = ["Dirigeant TPE-PME"]
+        answers["q4"] = ["TikTok"]
+        answers["q6"] = "Fidélisation"
+        answers["q8"] = "Moins de 2 h"
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Facebook")
+
+    def test_low_readiness_blocks_immediate_tiktok_launch(self):
+        answers = base_answers()
+        answers["q1"] = "Partiellement"
+        answers["q2"] = [
+            "Micro-entrepreneur",
+            "Artisan / commerçant / restaurateur",
+            "Profession libérale / Freelance",
+        ]
+        answers["q3"] = "Non"
+        answers["q4"] = ["TikTok"]
+        answers["q6"] = "Expertise / conseil"
+        answers["q8"] = "Moins de 2 h"
+        answers["q9"] = {
+            "Rédaction / script": "À acquérir",
+            "Création": "À acquérir",
+            "Montage": "À acquérir",
+            "Aisance face caméra": "À acquérir",
+        }
+        answers["q10"] = ["Smartphone récent"]
+        answers["q11"] = "Expert-comptable"
+        answers["q12"] = ["Autoformation"]
+        answers["q13"] = "Moins de 50 €"
+
+        result = evaluate(answers)
+
+        self.assertEqual(result["winner"], "TikTok")
+        self.assertEqual(result["readiness_label"], "Lancement à préparer")
+        self.assertLess(result["readiness"], 50)
+        self.assertTrue(
+            any("6 à 10 h" in action for action in result["launch_actions"])
+        )
+
+    def test_readiness_uses_platform_relevant_skills(self):
+        answers = base_answers()
+        answers["q2"] = ["Artisan / commerçant / restaurateur"]
+        answers["q4"] = ["Facebook"]
+        answers["q6"] = "Fidélisation"
+        answers["q8"] = "2 à 5 h"
+        answers["q9"]["Rédaction / script"] = "Autonome"
+        answers["q9"]["Création"] = "Autonome"
+        answers["q9"]["Montage"] = "À acquérir"
+        answers["q9"]["Aisance face caméra"] = "À acquérir"
+        result = evaluate(answers)
+
+        self.assertEqual(result["winner"], "Facebook")
+        self.assertGreaterEqual(result["readiness"], 75)
 
     def test_neutral_information_returns_no_arbitrary_winner(self):
         answers = base_answers()

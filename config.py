@@ -281,13 +281,14 @@ TIME_AFFINITY = {
     },
 }
 
-# La cible prime. Les réseaux qu'elle utilise représentent donc le poids
-# le plus important. Le compte du cabinet n'est pas inclus ici.
+# Les quatre dimensions de la décision sont placées au même niveau :
+# profil de l'audience, usages observés, objectif et temps disponible.
+# Le compte du cabinet n'est pas inclus ici.
 COHERENCE_WEIGHTS = {
     "profile": 0.25,
-    "target_networks": 0.40,
-    "objective": 0.20,
-    "time": 0.15,
+    "target_networks": 0.25,
+    "objective": 0.25,
+    "time": 0.25,
 }
 
 STATUS_TIE_BREAK = {

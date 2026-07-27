@@ -81,6 +81,19 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         leading=14,
         textColor=colors.HexColor("#222222"),
     )
+    table_label = ParagraphStyle(
+        "CapTableLabel",
+        parent=body,
+        fontName=FONT_BOLD,
+        fontSize=8.5,
+        leading=11,
+    )
+    table_value = ParagraphStyle(
+        "CapTableValue",
+        parent=body,
+        fontSize=8.5,
+        leading=11,
+    )
 
     winner = result.get("winner")
     recommendation = winner or "Résultat à consolider"
@@ -92,7 +105,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         Paragraph(recommendation, title),
     ]
     if winner:
-        story.append(Paragraph(f"Indice de cohérence : {score:.0f} %", subtitle))
+        story.append(Paragraph(f"Indice de pertinence : {score:.0f} %", subtitle))
 
     story.extend(
         [
@@ -106,10 +119,25 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         f"{answers.get('target', '')} à {answers.get('deadline', '')}"
     )
     decision_rows = [
-        ["Profils ciblés", ", ".join(answers.get("q2", []))],
-        ["Réseaux de la cible", ", ".join(answers.get("q4", [])) or "Non identifiés"],
-        ["Objectif", objective],
-        ["Temps disponible", answers.get("q8", "")],
+        [
+            Paragraph("Profils ciblés", table_label),
+            Paragraph(", ".join(answers.get("q2", [])), table_value),
+        ],
+        [
+            Paragraph("Réseaux de la cible", table_label),
+            Paragraph(
+                ", ".join(answers.get("q4", [])) or "Non identifiés",
+                table_value,
+            ),
+        ],
+        [
+            Paragraph("Objectif", table_label),
+            Paragraph(objective, table_value),
+        ],
+        [
+            Paragraph("Temps disponible", table_label),
+            Paragraph(answers.get("q8", ""), table_value),
+        ],
     ]
     decision_table = Table(decision_rows, colWidths=[42 * mm, 108 * mm])
     decision_table.setStyle(
@@ -131,12 +159,18 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     story.append(Paragraph("Qualité du diagnostic", heading))
     quality_rows = [
         [
-            "Fiabilité des données sur la cible",
-            f"{result['reliability_label']} - {result['reliability']:.0f} %",
+            Paragraph("Fiabilité des données sur la cible", table_label),
+            Paragraph(
+                f"{result['reliability_label']} - {result['reliability']:.0f} %",
+                table_value,
+            ),
         ],
         [
-            "Niveau de préparation",
-            f"{result['readiness_label']} - {result['readiness']:.0f} %",
+            Paragraph("Niveau de préparation", table_label),
+            Paragraph(
+                f"{result['readiness_label']} - {result['readiness']:.0f} %",
+                table_value,
+            ),
         ],
     ]
     quality_table = Table(quality_rows, colWidths=[60 * mm, 90 * mm])
@@ -156,9 +190,17 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     )
     story.append(quality_table)
 
-    story.append(Paragraph("Points à consolider", heading))
-    for alert in result.get("alerts", [])[:5]:
-        story.append(Paragraph(f"- {alert}", body))
+    story.append(Paragraph("Avant de commencer", heading))
+    story.append(
+        Paragraph(
+            "Ces actions préparent les conditions nécessaires au lancement sur "
+            "la plateforme recommandée.",
+            body,
+        )
+    )
+    story.append(Spacer(1, 5))
+    for index, action in enumerate(result.get("launch_actions", [])[:4], start=1):
+        story.append(Paragraph(f"{index}. {action}", body))
         story.append(Spacer(1, 3))
 
     story.extend(

@@ -50,6 +50,9 @@ def inject_css() -> None:
 
         header[data-testid="stHeader"],
         [data-testid="collapsedControl"],
+        [data-testid="stToolbar"],
+        [data-testid="stAppDeployButton"],
+        .stDeployButton,
         footer {
             display: none;
         }
@@ -156,6 +159,13 @@ def inject_css() -> None:
             font-weight: 680;
         }
 
+        .cap-card-purpose {
+            color: var(--cap-muted);
+            font-size: 0.82rem;
+            line-height: 1.5;
+            margin-top: 0.55rem;
+        }
+
         .cap-recommendation {
             border-top: 1px solid var(--cap-line);
             border-bottom: 1px solid var(--cap-line);
@@ -181,6 +191,61 @@ def inject_css() -> None:
             color: var(--cap-muted);
             font-size: 0.84rem;
             line-height: 1.5;
+        }
+
+        .cap-launch-box {
+            border: 1px solid var(--cap-black);
+            border-radius: 20px;
+            background: var(--cap-soft);
+            margin: 1.65rem 0 0.7rem 0;
+            padding: 1.35rem 1.45rem 0.45rem 1.45rem;
+        }
+
+        .cap-launch-kicker {
+            color: var(--cap-muted);
+            font-size: 0.72rem;
+            font-weight: 750;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+
+        .cap-launch-title {
+            color: var(--cap-black);
+            font-size: 1.35rem;
+            font-weight: 740;
+            letter-spacing: -0.025em;
+            margin-bottom: 0.35rem;
+        }
+
+        .cap-launch-intro {
+            color: #45484C;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+        }
+
+        .cap-action {
+            display: grid;
+            grid-template-columns: 2rem 1fr;
+            gap: 0.65rem;
+            align-items: start;
+            border-top: 1px solid #D9DCDD;
+            padding: 0.85rem 0;
+        }
+
+        .cap-action-number {
+            color: var(--cap-muted);
+            font-size: 0.74rem;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            padding-top: 0.12rem;
+        }
+
+        .cap-action-text {
+            color: var(--cap-black);
+            font-size: 0.9rem;
+            line-height: 1.48;
         }
 
         .cap-nav-spacer {
@@ -875,15 +940,30 @@ def result_page() -> None:
     else:
         winner = result["winner"]
         score = result["scores"][winner]
+        if result["readiness"] >= 75:
+            deployment_text = (
+                "Votre niveau de préparation permet d’engager le déploiement."
+            )
+        elif result["readiness"] >= 50:
+            deployment_text = (
+                "Son déploiement doit être sécurisé par les actions ci-dessous "
+                "avant le lancement."
+            )
+        else:
+            deployment_text = (
+                "Cette recommandation ne doit pas encore être déployée. "
+                "Préparez d’abord les conditions indiquées ci-dessous."
+            )
         st.markdown(
             f"""
             <div class="cap-recommendation">
-                <div class="cap-platform">{winner}</div>
-                <div class="cap-score">Indice de cohérence&nbsp;: {score:.0f}&nbsp;%</div>
+                <div class="cap-platform">{escape(winner)}</div>
+                <div class="cap-score">Indice de pertinence&nbsp;: {score:.0f}&nbsp;%</div>
             </div>
             <p class="cap-lead" style="margin-left:0">
-                {winner} est la plateforme la plus cohérente avec votre cible,
-                votre objectif et le temps que vous pouvez consacrer à votre communication.
+                Au regard de votre audience cible, des réseaux qu’elle utilise,
+                de votre objectif et du temps disponible, {escape(winner)}
+                obtient la meilleure pertinence. {escape(deployment_text)}
             </p>
             """,
             unsafe_allow_html=True,
@@ -898,29 +978,54 @@ def result_page() -> None:
             reliability_detail = "Persona, besoins, réseaux et sources documentés."
         st.markdown(
             f"""
-            <div class="cap-card">
-                <div class="cap-card-label">Fiabilité des données sur la cible</div>
-                <div class="cap-card-value">{result["reliability_label"]} · {result["reliability"]:.0f} %</div>
-                <div class="cap-note" style="margin-top:.45rem">{reliability_detail}</div>
-            </div>
+                <div class="cap-card">
+                    <div class="cap-card-label">Fiabilité des données sur la cible</div>
+                    <div class="cap-card-value">{result["reliability_label"]} · {result["reliability"]:.0f} %</div>
+                    <div class="cap-note" style="margin-top:.45rem">{escape(reliability_detail)}</div>
+                </div>
             """,
             unsafe_allow_html=True,
         )
     with c2:
         st.markdown(
             f"""
-            <div class="cap-card">
-                <div class="cap-card-label">Niveau de préparation</div>
-                <div class="cap-card-value">{result["readiness_label"]} · {result["readiness"]:.0f} %</div>
-            </div>
+                <div class="cap-card">
+                    <div class="cap-card-label">Niveau de préparation</div>
+                    <div class="cap-card-value">{result["readiness_label"]} · {result["readiness"]:.0f} %</div>
+                    <div class="cap-card-purpose">
+                        Indique si le temps, les compétences, le matériel et
+                        l’organisation permettent de commencer sur la plateforme recommandée.
+                    </div>
+                </div>
             """,
             unsafe_allow_html=True,
         )
 
-    if result["alerts"]:
-        st.subheader("Points à consolider")
-        for alert in result["alerts"][:4]:
-            st.markdown(f"- {alert}")
+    launch_actions = result.get("launch_actions", [])
+    if launch_actions:
+        actions_html = "".join(
+            f"""
+            <div class="cap-action">
+                <div class="cap-action-number">{index:02}</div>
+                <div class="cap-action-text">{escape(action)}</div>
+            </div>
+            """
+            for index, action in enumerate(launch_actions, start=1)
+        )
+        st.markdown(
+            f"""
+            <div class="cap-launch-box">
+                <div class="cap-launch-kicker">Préparation opérationnelle</div>
+                <div class="cap-launch-title">Avant de commencer</div>
+                <div class="cap-launch-intro">
+                    Réalisez ces actions pour disposer des conditions nécessaires
+                    au lancement.
+                </div>
+                {actions_html}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     pdf_bytes = build_summary_pdf(answers, result)
     st.write("")
