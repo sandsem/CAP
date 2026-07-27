@@ -42,14 +42,14 @@ def base_answers():
 
 
 class ScoringTests(unittest.TestCase):
-    def test_four_decision_dimensions_have_equal_weight(self):
+    def test_audience_has_priority_and_time_is_secondary(self):
         self.assertEqual(
             COHERENCE_WEIGHTS,
             {
-                "profile": 0.25,
-                "target_networks": 0.25,
-                "objective": 0.25,
-                "time": 0.25,
+                "profile": 0.35,
+                "target_networks": 0.40,
+                "objective": 0.20,
+                "time": 0.05,
             },
         )
 
@@ -111,14 +111,36 @@ class ScoringTests(unittest.TestCase):
         self.assertLess(result["reliability"], 75)
         self.assertEqual(result["reliability_label"], "Informations partielles")
 
-    def test_target_network_does_not_override_other_criteria(self):
+    def test_known_target_network_limits_the_recommendation(self):
         answers = base_answers()
         answers["q2"] = ["Dirigeant TPE-PME"]
         answers["q4"] = ["TikTok"]
         answers["q6"] = "Fidélisation"
         answers["q8"] = "Moins de 2 h"
         result = evaluate(answers)
-        self.assertEqual(result["winner"], "Facebook")
+        self.assertEqual(result["winner"], "TikTok")
+
+    def test_profile_and_objective_depart_two_target_networks(self):
+        answers = base_answers()
+        answers["q2"] = [
+            "Association / Secteur non-marchand",
+            "Start-up",
+            "Profession libérale / Freelance",
+        ]
+        answers["q4"] = ["Instagram", "Facebook"]
+        answers["q6"] = "Acquisition"
+        answers["q8"] = "Moins de 2 h"
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Instagram")
+
+    def test_low_time_does_not_override_audience_fit(self):
+        answers = base_answers()
+        answers["q2"] = ["Start-up", "Profession libérale / Freelance"]
+        answers["q4"] = ["Instagram", "Facebook"]
+        answers["q6"] = "Acquisition"
+        answers["q8"] = "Moins de 2 h"
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Instagram")
 
     def test_low_readiness_blocks_immediate_tiktok_launch(self):
         answers = base_answers()
@@ -146,7 +168,7 @@ class ScoringTests(unittest.TestCase):
         result = evaluate(answers)
 
         self.assertEqual(result["winner"], "TikTok")
-        self.assertEqual(result["readiness_label"], "Lancement à préparer")
+        self.assertEqual(result["readiness_label"], "À préparer")
         self.assertLess(result["readiness"], 50)
         self.assertTrue(
             any("6 à 10 h" in action for action in result["launch_actions"])

@@ -930,6 +930,9 @@ def result_page() -> None:
 
     logo()
     st.markdown('<div class="cap-eyebrow">Votre recommandation</div>', unsafe_allow_html=True)
+    readiness_advice = (
+        "Clarifiez d’abord les informations manquantes avant d’organiser le lancement."
+    )
 
     if result["winner"] is None:
         st.header("Résultat à consolider")
@@ -944,15 +947,27 @@ def result_page() -> None:
             deployment_text = (
                 "Votre niveau de préparation permet d’engager le déploiement."
             )
+            readiness_advice = (
+                "Les conditions sont réunies. Programmez vos premières publications "
+                "et suivez leurs résultats."
+            )
         elif result["readiness"] >= 50:
             deployment_text = (
-                "Son déploiement doit être sécurisé par les actions ci-dessous "
-                "avant le lancement."
+                "Réalisez les actions indiquées ci-dessous avant de programmer "
+                "le lancement."
+            )
+            readiness_advice = (
+                "Complétez les actions indiquées dans l’encadré « Avant de commencer », "
+                "puis programmez un premier mois de publications."
             )
         else:
             deployment_text = (
                 "Cette recommandation ne doit pas encore être déployée. "
-                "Préparez d’abord les conditions indiquées ci-dessous."
+                "Réalisez d’abord les actions indiquées ci-dessous."
+            )
+            readiness_advice = (
+                "Ne commencez pas encore. Réalisez d’abord les actions indiquées "
+                "dans l’encadré « Avant de commencer »."
             )
         st.markdown(
             f"""
@@ -961,9 +976,10 @@ def result_page() -> None:
                 <div class="cap-score">Indice de pertinence&nbsp;: {score:.0f}&nbsp;%</div>
             </div>
             <p class="cap-lead" style="margin-left:0">
-                Au regard de votre audience cible, des réseaux qu’elle utilise,
-                de votre objectif et du temps disponible, {escape(winner)}
-                obtient la meilleure pertinence. {escape(deployment_text)}
+                Au regard du profil de votre audience, des réseaux qu’elle utilise
+                et de votre objectif, {escape(winner)} obtient la meilleure pertinence.
+                Le temps disponible complète cet arbitrage et détermine surtout votre
+                niveau de préparation. {escape(deployment_text)}
             </p>
             """,
             unsafe_allow_html=True,
@@ -993,8 +1009,7 @@ def result_page() -> None:
                     <div class="cap-card-label">Niveau de préparation</div>
                     <div class="cap-card-value">{result["readiness_label"]} · {result["readiness"]:.0f} %</div>
                     <div class="cap-card-purpose">
-                        Indique si le temps, les compétences, le matériel et
-                        l’organisation permettent de commencer sur la plateforme recommandée.
+                        {escape(readiness_advice)}
                     </div>
                 </div>
             """,
@@ -1018,8 +1033,8 @@ def result_page() -> None:
                 <div class="cap-launch-kicker">Préparation opérationnelle</div>
                 <div class="cap-launch-title">Avant de commencer</div>
                 <div class="cap-launch-intro">
-                    Réalisez ces actions pour disposer des conditions nécessaires
-                    au lancement.
+                    Le diagnostic a relevé les actions suivantes. Réalisez-les avant
+                    de programmer vos premières publications.
                 </div>
                 {actions_html}
             </div>

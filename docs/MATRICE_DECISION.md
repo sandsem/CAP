@@ -1,18 +1,23 @@
 # Matrice de décision CAP
 
-## 1. Indice de cohérence
+## 1. Indice de pertinence
 
 L'indice compare Facebook, Instagram, TikTok et YouTube sur une base de 100.
 
 | Donnée | Poids | Rôle |
 |---|---:|---|
-| Profils ciblés | 25 % | Apprécier l'affinité générale entre la clientèle recherchée et chaque plateforme |
+| Profils ciblés | 35 % | Apprécier l'affinité générale entre la clientèle recherchée et chaque plateforme |
 | Réseaux utilisés par la cible | 40 % | Donner la priorité au lieu où la cible consulte effectivement ses contenus |
 | Objectif du cabinet | 20 % | Vérifier que l'usage dominant de la plateforme répond au résultat attendu |
-| Temps disponible | 15 % | Confronter la recommandation à la charge de production supportable |
+| Temps disponible | 5 % | Apporter un arbitrage complémentaire sans écarter la plateforme fréquentée par la cible |
+
+Le profil de l'audience et les réseaux qu'elle utilise représentent ainsi 75 % de
+l'indice. Lorsque les réseaux de la cible sont identifiés, la recommandation est
+nécessairement choisie parmi eux. Les profils ciblés et l'objectif départagent
+alors les plateformes déclarées ; le temps n'intervient qu'à titre complémentaire.
 
 Lorsque les réseaux de la cible ne sont pas identifiés, ce critère est retiré du
-calcul et les autres poids sont renormalisés. Le résultat devient alors indicatif.
+calcul, les autres poids sont renormalisés et le résultat devient indicatif.
 
 ## 2. Compte existant
 
@@ -48,7 +53,7 @@ recommandation repose sur des éléments suffisamment documentés.
 ## 4. Niveau de préparation
 
 Ce niveau mesure la capacité du cabinet à appliquer la recommandation. Il ne
-remplace pas l'indice de cohérence.
+remplace pas l'indice de pertinence.
 
 | Élément | Maximum |
 |---|---:|
@@ -60,5 +65,5 @@ remplace pas l'indice de cohérence.
 | Budget évalué | 5 |
 
 - 75 à 100 : prêt à démarrer ;
-- 50 à 74 : à consolider ;
+- 50 à 74 : à compléter ;
 - moins de 50 : à préparer.

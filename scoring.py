@@ -35,7 +35,12 @@ def _network_affinity(selections: list[str]) -> tuple[dict[str, float], bool]:
 
 def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | None, bool]:
     profile_scores = _mean_affinity(answers.get("q2", []), PROFILE_AFFINITY)
-    network_scores, has_known_network = _network_affinity(answers.get("q4", []))
+    target_networks = [
+        network
+        for network in answers.get("q4", [])
+        if network in PLATFORM_NAMES
+    ]
+    network_scores, has_known_network = _network_affinity(target_networks)
     objective = answers.get("q6", "Autre")
     objective_scores = OBJECTIVE_AFFINITY.get(
         objective, OBJECTIVE_AFFINITY["Autre"]
@@ -62,10 +67,23 @@ def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | No
             1,
         )
 
-    ranking = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    # Lorsque les usages de la cible sont connus, CAP ne recommande pas une
+    # plateforme qu'elle n'utilise pas. Les autres critères départagent donc
+    # uniquement les réseaux effectivement renseignés. Si ces usages sont
+    # inconnus, les quatre plateformes restent comparées à titre indicatif.
+    eligible_platforms = target_networks if has_known_network else PLATFORM_NAMES
+    ranking = sorted(
+        ((platform, scores[platform]) for platform in eligible_platforms),
+        key=lambda item: item[1],
+        reverse=True,
+    )
     top_name, top_score = ranking[0]
-    second_name, second_score = ranking[1]
     unresolved = False
+
+    if len(ranking) == 1:
+        return scores, top_name, unresolved
+
+    second_name, second_score = ranking[1]
 
     # Le compte existant n'intervient qu'en dernier recours. Une simple
     # ouverture de compte ou un compte inactif ne modifie pas la recommandation.
@@ -80,7 +98,11 @@ def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | No
         if top_bonus != second_bonus:
             scores[top_name] = round(scores[top_name] + top_bonus, 1)
             scores[second_name] = round(scores[second_name] + second_bonus, 1)
-            ranking = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+            ranking = sorted(
+                ((platform, scores[platform]) for platform in eligible_platforms),
+                key=lambda item: item[1],
+                reverse=True,
+            )
             top_name, top_score = ranking[0]
             second_name, second_score = ranking[1]
 
@@ -255,9 +277,9 @@ def calculate_readiness(
     if score >= 75:
         label = "Prêt à démarrer"
     elif score >= 50:
-        label = "Lancement à sécuriser"
+        label = "À compléter"
     else:
-        label = "Lancement à préparer"
+        label = "À préparer"
     return score, label
 
 
@@ -374,7 +396,7 @@ def build_launch_actions(answers: dict, winner: str | None) -> list[str]:
             "un mois pour vérifier la charge réellement consommée."
         )
 
-    return actions[:4]
+    return actions
 
 
 def build_decision_notes(answers: dict, unresolved: bool) -> list[str]:

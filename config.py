@@ -281,14 +281,16 @@ TIME_AFFINITY = {
     },
 }
 
-# Les quatre dimensions de la décision sont placées au même niveau :
-# profil de l'audience, usages observés, objectif et temps disponible.
+# L'audience prime dans la recommandation : son profil et les réseaux qu'elle
+# utilise représentent ensemble 75 % de l'indice. L'objectif départage ensuite
+# les plateformes pertinentes. Le temps reste un critère complémentaire ; il
+# est surtout repris dans le niveau de préparation au lancement.
 # Le compte du cabinet n'est pas inclus ici.
 COHERENCE_WEIGHTS = {
-    "profile": 0.25,
-    "target_networks": 0.25,
-    "objective": 0.25,
-    "time": 0.25,
+    "profile": 0.35,
+    "target_networks": 0.40,
+    "objective": 0.20,
+    "time": 0.05,
 }
 
 STATUS_TIE_BREAK = {
