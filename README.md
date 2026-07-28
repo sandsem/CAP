@@ -8,7 +8,7 @@ experts-comptables ex nihilo.
 Le diagnostic confronte quatre dimensions :
 
 - le profil de la cible ;
-- les réseaux qu’elle utilise ;
+- les réseaux sur lesquels elle recherche l’information liée à son besoin ;
 - l’objectif du cabinet ;
 - le temps disponible.
 

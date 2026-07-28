@@ -23,16 +23,6 @@ def _mean_affinity(
     }
 
 
-def _network_affinity(selections: list[str]) -> tuple[dict[str, float], bool]:
-    known = [network for network in selections if network in PLATFORM_NAMES]
-    if not known:
-        return {platform: 0.0 for platform in PLATFORM_NAMES}, False
-    return {
-        platform: 100.0 if platform in known else 0.0
-        for platform in PLATFORM_NAMES
-    }, True
-
-
 def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | None, bool]:
     profile_scores = _mean_affinity(answers.get("q2", []), PROFILE_AFFINITY)
     target_networks = [
@@ -40,7 +30,7 @@ def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | No
         for network in answers.get("q4", [])
         if network in PLATFORM_NAMES
     ]
-    network_scores, has_known_network = _network_affinity(target_networks)
+    has_known_network = bool(target_networks)
     objective = answers.get("q6", "Autre")
     objective_scores = OBJECTIVE_AFFINITY.get(
         objective, OBJECTIVE_AFFINITY["Autre"]
@@ -48,29 +38,31 @@ def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | No
     time = answers.get("q8", "Non évalué")
     time_scores = TIME_AFFINITY.get(time, TIME_AFFINITY["Non évalué"])
 
-    active_weights = dict(COHERENCE_WEIGHTS)
-    if not has_known_network:
-        active_weights.pop("target_networks")
-    weight_total = sum(active_weights.values())
+    weight_total = sum(COHERENCE_WEIGHTS.values())
 
     scores = {}
     for platform in PLATFORM_NAMES:
         components = {
             "profile": profile_scores[platform],
-            "target_networks": network_scores[platform],
             "objective": objective_scores[platform],
             "time": time_scores[platform],
         }
         scores[platform] = round(
-            sum(components[key] * weight for key, weight in active_weights.items())
+            sum(
+                components[key] * weight
+                for key, weight in COHERENCE_WEIGHTS.items()
+            )
             / weight_total,
             1,
         )
 
-    # Lorsque les usages de la cible sont connus, CAP ne recommande pas une
-    # plateforme qu'elle n'utilise pas. Les autres critères départagent donc
-    # uniquement les réseaux effectivement renseignés. Si ces usages sont
-    # inconnus, les quatre plateformes restent comparées à titre indicatif.
+    # Lorsque les canaux d'information de la cible sont connus, CAP ne
+    # recommande pas une plateforme sur laquelle elle ne recherche pas les
+    # informations liées au besoin traité par le cabinet. Ce critère forme un
+    # filtre. L'objectif SMART départage en priorité les réseaux éligibles,
+    # complété par le profil de la cible et, marginalement, par le temps.
+    # Si ces canaux sont inconnus, les quatre plateformes restent comparées à
+    # titre indicatif.
     eligible_platforms = target_networks if has_known_network else PLATFORM_NAMES
     ranking = sorted(
         ((platform, scores[platform]) for platform in eligible_platforms),
@@ -172,7 +164,7 @@ def build_reliability_notes(answers: dict) -> list[str]:
         notes.append("besoins à recenser")
 
     if not any(network in PLATFORM_NAMES for network in answers.get("q4", [])):
-        notes.append("réseaux de la cible à documenter")
+        notes.append("canaux d’information de la cible à documenter")
 
     sources = [
         source for source in answers.get("q5", []) if source != "Aucune source"
@@ -409,7 +401,10 @@ def build_decision_notes(answers: dict, unresolved: bool) -> list[str]:
     elif answers.get("q3") == "Partiellement":
         notes.append("Compléter le recensement des besoins de la cible.")
     if not any(network in PLATFORM_NAMES for network in answers.get("q4", [])):
-        notes.append("Documenter les réseaux réellement utilisés par la cible.")
+        notes.append(
+            "Documenter les réseaux sur lesquels la cible recherche les "
+            "informations liées à son besoin."
+        )
     sources = [
         source for source in answers.get("q5", []) if source != "Aucune source"
     ]
@@ -418,7 +413,8 @@ def build_decision_notes(answers: dict, unresolved: bool) -> list[str]:
     if unresolved:
         notes.insert(
             0,
-            "Préciser le profil cible ou ses réseaux d’information pour départager les plateformes.",
+            "Préciser le profil cible ou ses canaux d’information pour "
+            "départager les plateformes.",
         )
     return notes
 

@@ -611,10 +611,11 @@ def target_page() -> None:
         key="target_needs",
     )
     q4 = select_many(
-        "Quels réseaux utilise votre cible ?",
+        "Sur quels réseaux votre cible recherche-t-elle des informations liées au besoin auquel votre cabinet souhaite répondre ?",
         TARGET_NETWORK_OPTIONS,
         answers.get("q4", []),
         "target_networks",
+        "Ne retenez pas ses réseaux de divertissement s’ils ne sont pas utilisés pour rechercher cette information.",
     )
     q5 = select_many(
         "D’où viennent vos informations ?",
@@ -863,7 +864,7 @@ def review_page() -> None:
         "Votre cible",
         [
             ("Profils :", join_values(answers.get("q2", []))),
-            ("Réseaux utilisés :", join_values(answers.get("q4", []))),
+            ("Canaux d’information :", join_values(answers.get("q4", []))),
             ("Sources :", join_values(answers.get("q5", []))),
         ],
     )
@@ -976,10 +977,10 @@ def result_page() -> None:
                 <div class="cap-score">Indice de pertinence&nbsp;: {score:.0f}&nbsp;%</div>
             </div>
             <p class="cap-lead" style="margin-left:0">
-                Au regard du profil de votre audience, des réseaux qu’elle utilise
-                et de votre objectif, {escape(winner)} obtient la meilleure pertinence.
-                Le temps disponible complète cet arbitrage et détermine surtout votre
-                niveau de préparation. {escape(deployment_text)}
+                Parmi les réseaux sur lesquels votre cible recherche ses informations,
+                {escape(winner)} est le plus cohérent avec votre objectif et son profil.
+                Le temps disponible complète l’analyse et détermine surtout votre niveau
+                de préparation. {escape(deployment_text)}
             </p>
             """,
             unsafe_allow_html=True,

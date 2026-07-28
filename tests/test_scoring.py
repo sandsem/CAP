@@ -42,13 +42,12 @@ def base_answers():
 
 
 class ScoringTests(unittest.TestCase):
-    def test_audience_has_priority_and_time_is_secondary(self):
+    def test_objective_arbitrates_and_time_is_secondary(self):
         self.assertEqual(
             COHERENCE_WEIGHTS,
             {
                 "profile": 0.35,
-                "target_networks": 0.40,
-                "objective": 0.20,
+                "objective": 0.60,
                 "time": 0.05,
             },
         )
@@ -103,6 +102,18 @@ class ScoringTests(unittest.TestCase):
         answers["q4"] = ["Instagram", "TikTok"]
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
+
+    def test_objective_changes_the_choice_between_information_channels(self):
+        answers = base_answers()
+        answers["q4"] = ["Instagram", "TikTok"]
+
+        answers["q6"] = "Visibilité / notoriété"
+        visibility_result = evaluate(answers)
+        self.assertEqual(visibility_result["winner"], "TikTok")
+
+        answers["q6"] = "Acquisition"
+        acquisition_result = evaluate(answers)
+        self.assertEqual(acquisition_result["winner"], "Instagram")
 
     def test_unknown_target_network_caps_reliability(self):
         answers = base_answers()

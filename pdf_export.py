@@ -124,7 +124,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
             Paragraph(", ".join(answers.get("q2", [])), table_value),
         ],
         [
-            Paragraph("Réseaux de la cible", table_label),
+            Paragraph("Canaux d’information de la cible", table_label),
             Paragraph(
                 ", ".join(answers.get("q4", [])) or "Non identifiés",
                 table_value,

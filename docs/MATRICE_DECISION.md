@@ -2,22 +2,28 @@
 
 ## 1. Indice de pertinence
 
-L'indice compare Facebook, Instagram, TikTok et YouTube sur une base de 100.
+La recommandation suit deux opérations successives : la sélection des
+plateformes éligibles, puis leur classement.
+
+Les réseaux sur lesquels la cible recherche des informations liées au besoin
+auquel le cabinet souhaite répondre constituent le filtre d'éligibilité. Une
+plateforme qui n'est pas renseignée à cette étape ne peut pas être recommandée.
+La simple présence de la cible sur un réseau ne suffit donc pas.
+
+Les plateformes éligibles sont ensuite classées sur une base de 100 :
 
 | Donnée | Poids | Rôle |
 |---|---:|---|
-| Profils ciblés | 35 % | Apprécier l'affinité générale entre la clientèle recherchée et chaque plateforme |
-| Réseaux utilisés par la cible | 40 % | Donner la priorité au lieu où la cible consulte effectivement ses contenus |
-| Objectif du cabinet | 20 % | Vérifier que l'usage dominant de la plateforme répond au résultat attendu |
-| Temps disponible | 5 % | Apporter un arbitrage complémentaire sans écarter la plateforme fréquentée par la cible |
+| Objectif du cabinet | 60 % | Départager les plateformes selon le résultat SMART recherché |
+| Profils ciblés | 35 % | Préciser l'affinité entre la clientèle recherchée et chaque plateforme |
+| Temps disponible | 5 % | Apporter un arbitrage complémentaire sans dominer le choix |
 
-Le profil de l'audience et les réseaux qu'elle utilise représentent ainsi 75 % de
-l'indice. Lorsque les réseaux de la cible sont identifiés, la recommandation est
-nécessairement choisie parmi eux. Les profils ciblés et l'objectif départagent
-alors les plateformes déclarées ; le temps n'intervient qu'à titre complémentaire.
+La cible oriente ainsi la sélection et l'objectif détermine prioritairement la
+plateforme recommandée. Le temps sert surtout au calcul du niveau de préparation.
 
-Lorsque les réseaux de la cible ne sont pas identifiés, ce critère est retiré du
-calcul, les autres poids sont renormalisés et le résultat devient indicatif.
+Lorsque les canaux d'information de la cible ne sont pas identifiés, les quatre
+plateformes sont comparées à titre indicatif et la fiabilité du résultat est
+plafonnée.
 
 ## 2. Compte existant
 
@@ -32,7 +38,7 @@ les deux premiers scores sont séparés de 1,5 point au maximum :
 | Contacts obtenus | 2 |
 
 Si l'égalité subsiste, CAP ne choisit pas arbitrairement. Il demande au cabinet
-de préciser sa cible ou les réseaux qu'elle utilise.
+de préciser sa cible ou les réseaux sur lesquels elle recherche ses informations.
 
 ## 3. Fiabilité des informations
 
