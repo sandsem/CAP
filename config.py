@@ -34,6 +34,12 @@ SOURCE_OPTIONS = [
     "Aucune source",
 ]
 
+EVIDENCE_QUALITY_OPTIONS = [
+    "Récentes et concordantes",
+    "Partiellement vérifiées",
+    "Anciennes ou non vérifiées",
+]
+
 OBJECTIVE_OPTIONS = [
     "Visibilité / notoriété",
     "Acquisition",
@@ -84,6 +90,31 @@ INDICATOR_OPTIONS = {
     "Autre": ["Autre indicateur"],
 }
 
+DISCOVERY_MODE_OPTIONS = [
+    "Recherche volontaire d’une réponse",
+    "Échanges dans une communauté ou un groupe local",
+    "Découverte visuelle en suivant des comptes",
+    "Recommandation de contenus selon les centres d’intérêt",
+    "Plusieurs usages",
+    "Non identifié",
+]
+
+EDITORIAL_TREATMENT_OPTIONS = [
+    "Informer et échanger avec une communauté",
+    "Montrer et vulgariser visuellement",
+    "Capter rapidement avec un contenu direct et incarné",
+    "Expliquer et approfondir un sujet",
+    "Non défini",
+]
+
+AUDIENCE_EFFECT_OPTIONS = [
+    "Créer une relation de proximité",
+    "Valoriser l’image du cabinet et entretenir la relation",
+    "Faire découvrir le cabinet",
+    "Démontrer l’expertise et répondre à un besoin identifié",
+    "Non défini",
+]
+
 PLATFORM_STATUS_OPTIONS = [
     "Aucun compte",
     "Compte inactif",
@@ -93,6 +124,7 @@ PLATFORM_STATUS_OPTIONS = [
 ]
 
 TIME_OPTIONS = [
+    "Aucun temps disponible",
     "Moins de 2 h",
     "2 à 5 h",
     "6 à 10 h",
@@ -134,169 +166,156 @@ APP_SUPPORT_OPTIONS = [
     "Non défini",
 ]
 
-BUDGET_OPTIONS = [
-    "Aucun budget",
-    "Moins de 50 €",
-    "50 à 150 €",
-    "Plus de 150 €",
+SUPPORT_STATUS_OPTIONS = [
+    "Aucune aide nécessaire",
+    "Aide déjà organisée",
+    "Aide envisagée mais non organisée",
+    "Aide indispensable sans solution",
     "Non évalué",
 ]
 
+BUDGET_OPTIONS = [
+    "Aucune dépense nécessaire",
+    "Budget validé",
+    "Montant à confirmer",
+    "Dépense indispensable non finançable",
+    "Non évalué",
+]
 
-# Les valeurs expriment une affinité sur 100. Elles sont ensuite pondérées
-# dans scoring.py. La matrice reste séparée de l'interface pour pouvoir être
-# auditée et ajustée sans modifier le parcours utilisateur.
-PROFILE_AFFINITY = {
-    "Créateur d’entreprise": {
-        "Facebook": 85,
-        "Instagram": 90,
-        "TikTok": 90,
-        "YouTube": 85,
+# Cette grille décrit les différences de fonctionnement des plateformes.
+# Elle ne contient ni note sur 100, ni pondération, ni hypothèse liée à l’âge
+# ou au métier du persona. Le profil sert à décrire la cible ; son comportement
+# réel sert à comparer les réseaux qu’elle utilise.
+PLATFORM_REFERENCE = {
+    "Facebook": {
+        "discovery_modes": {"Échanges dans une communauté ou un groupe local"},
+        "editorial_treatment": "Informer et échanger avec une communauté",
+        "audience_effect": "Créer une relation de proximité",
+        "objectives": {
+            "Visibilité / notoriété",
+            "Acquisition",
+            "Fidélisation",
+        },
+        "discovery_label": "communautés, groupes et proximité territoriale",
+        "treatment_label": "information et échange",
+        "effect_label": "relation de proximité",
     },
-    "Micro-entrepreneur": {
-        "Facebook": 90,
-        "Instagram": 85,
-        "TikTok": 95,
-        "YouTube": 70,
+    "Instagram": {
+        "discovery_modes": {"Découverte visuelle en suivant des comptes"},
+        "editorial_treatment": "Montrer et vulgariser visuellement",
+        "audience_effect": "Valoriser l’image du cabinet et entretenir la relation",
+        "objectives": {
+            "Visibilité / notoriété",
+            "Acquisition",
+            "Recrutement",
+            "Fidélisation",
+        },
+        "discovery_label": "découverte visuelle et suivi des comptes",
+        "treatment_label": "mise en valeur et vulgarisation",
+        "effect_label": "valorisation de l’image et entretien de la relation",
     },
-    "Artisan / commerçant / restaurateur": {
-        "Facebook": 100,
-        "Instagram": 85,
-        "TikTok": 70,
-        "YouTube": 55,
+    "TikTok": {
+        "discovery_modes": {
+            "Recommandation de contenus selon les centres d’intérêt"
+        },
+        "editorial_treatment": "Capter rapidement avec un contenu direct et incarné",
+        "audience_effect": "Faire découvrir le cabinet",
+        "objectives": {
+            "Visibilité / notoriété",
+            "Acquisition",
+            "Recrutement",
+        },
+        "discovery_label": "recommandation selon les centres d’intérêt",
+        "treatment_label": "contenu direct et incarné",
+        "effect_label": "découverte du cabinet",
     },
-    "Dirigeant TPE-PME": {
-        "Facebook": 90,
-        "Instagram": 75,
-        "TikTok": 45,
-        "YouTube": 80,
-    },
-    "Start-up": {
-        "Facebook": 55,
-        "Instagram": 100,
-        "TikTok": 85,
-        "YouTube": 80,
-    },
-    "Profession libérale / Freelance": {
-        "Facebook": 70,
-        "Instagram": 95,
-        "TikTok": 90,
-        "YouTube": 75,
-    },
-    "Association / Secteur non-marchand": {
-        "Facebook": 100,
-        "Instagram": 65,
-        "TikTok": 55,
-        "YouTube": 60,
-    },
-    "Jeune talent / étudiant": {
-        "Facebook": 45,
-        "Instagram": 90,
-        "TikTok": 100,
-        "YouTube": 75,
-    },
-    "Particulier / Gestion de patrimoine": {
-        "Facebook": 90,
-        "Instagram": 70,
-        "TikTok": 55,
-        "YouTube": 85,
-    },
-    "Autre": {
-        "Facebook": 50,
-        "Instagram": 50,
-        "TikTok": 50,
-        "YouTube": 50,
+    "YouTube": {
+        "discovery_modes": {
+            "Recherche volontaire d’une réponse",
+            "Recommandation de contenus selon les centres d’intérêt",
+        },
+        "editorial_treatment": "Expliquer et approfondir un sujet",
+        "audience_effect": "Démontrer l’expertise et répondre à un besoin identifié",
+        "objectives": {
+            "Visibilité / notoriété",
+            "Acquisition",
+            "Expertise / conseil",
+        },
+        "discovery_label": "recherche volontaire et recommandation",
+        "treatment_label": "explication structurée",
+        "effect_label": "démonstration de l’expertise",
     },
 }
 
-OBJECTIVE_AFFINITY = {
-    "Visibilité / notoriété": {
-        "Facebook": 75,
-        "Instagram": 90,
-        "TikTok": 100,
-        "YouTube": 75,
-    },
-    "Acquisition": {
-        "Facebook": 85,
-        "Instagram": 90,
-        "TikTok": 75,
-        "YouTube": 80,
-    },
-    "Expertise / conseil": {
-        "Facebook": 80,
-        "Instagram": 75,
-        "TikTok": 65,
-        "YouTube": 100,
-    },
-    "Recrutement": {
-        "Facebook": 55,
-        "Instagram": 85,
-        "TikTok": 85,
-        "YouTube": 60,
-    },
-    "Fidélisation": {
-        "Facebook": 100,
-        "Instagram": 85,
-        "TikTok": 55,
-        "YouTube": 70,
-    },
-    "Autre": {
-        "Facebook": 50,
-        "Instagram": 50,
-        "TikTok": 50,
-        "YouTube": 50,
-    },
+PLATFORM_FORMATS = {
+    "Facebook": [
+        "Publication texte",
+        "Photo / visuel",
+        "Carrousel",
+        "Reel / vidéo courte",
+        "Story",
+        "Live",
+    ],
+    "Instagram": [
+        "Photo",
+        "Carrousel",
+        "Reel",
+        "Story",
+        "Live",
+    ],
+    "TikTok": [
+        "Vidéo",
+        "Publication photo / carrousel",
+        "Story",
+        "Live",
+    ],
+    "YouTube": [
+        "Vidéo longue",
+        "Short",
+        "Live",
+        "Publication Communauté",
+    ],
 }
 
-TIME_AFFINITY = {
-    "Moins de 2 h": {
-        "Facebook": 100,
-        "Instagram": 55,
-        "TikTok": 40,
-        "YouTube": 10,
+FORMAT_REQUIRED_SKILLS = {
+    "Publication texte": {"Rédaction / script"},
+    "Photo / visuel": {"Rédaction / script", "Création de visuels"},
+    "Photo": {"Rédaction / script", "Création de visuels"},
+    "Carrousel": {"Rédaction / script", "Création de visuels"},
+    "Publication photo / carrousel": {
+        "Rédaction / script",
+        "Création de visuels",
     },
-    "2 à 5 h": {
-        "Facebook": 90,
-        "Instagram": 75,
-        "TikTok": 65,
-        "YouTube": 30,
+    "Publication Communauté": {
+        "Rédaction / script",
+        "Création de visuels",
     },
-    "6 à 10 h": {
-        "Facebook": 80,
-        "Instagram": 95,
-        "TikTok": 90,
-        "YouTube": 65,
+    "Reel / vidéo courte": {"Rédaction / script", "Montage vidéo"},
+    "Reel": {"Rédaction / script", "Montage vidéo"},
+    "Vidéo": {"Rédaction / script", "Montage vidéo"},
+    "Vidéo longue": {
+        "Rédaction / script",
+        "Montage vidéo",
     },
-    "Plus de 10 h": {
-        "Facebook": 75,
-        "Instagram": 95,
-        "TikTok": 95,
-        "YouTube": 100,
-    },
-    "Non évalué": {
-        "Facebook": 50,
-        "Instagram": 50,
-        "TikTok": 50,
-        "YouTube": 50,
-    },
+    "Short": {"Rédaction / script", "Montage vidéo"},
+    "Story": {"Rédaction / script", "Création de visuels"},
+    "Live": {"Rédaction / script", "Aisance face caméra"},
 }
 
-# Les réseaux sur lesquels la cible recherche une information liée au besoin
-# auquel le cabinet souhaite répondre constituent un filtre d'éligibilité.
-# Parmi ces réseaux, l'objectif SMART est le premier critère d'arbitrage. Le
-# profil de la cible précise l'affinité avec chaque plateforme et le temps reste
-# complémentaire ; il est surtout repris dans le niveau de préparation.
-# Le compte du cabinet n'est pas inclus ici.
-COHERENCE_WEIGHTS = {
-    "profile": 0.35,
-    "objective": 0.60,
-    "time": 0.05,
+VIDEO_FORMATS = {
+    "Reel / vidéo courte",
+    "Reel",
+    "Vidéo",
+    "Vidéo longue",
+    "Short",
+    "Live",
 }
 
-STATUS_TIE_BREAK = {
-    "Aucun compte": 0,
-    "Compte inactif": 0,
-    "Compte actif": 0,
-    "Audience cible engagée": 1.5,
-    "Contacts obtenus": 2.0,
+VISUAL_FORMATS = {
+    "Photo / visuel",
+    "Photo",
+    "Carrousel",
+    "Publication photo / carrousel",
+    "Publication Communauté",
+    "Story",
 }

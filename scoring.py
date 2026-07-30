@@ -1,442 +1,509 @@
-from statistics import mean
-
 from config import (
-    COHERENCE_WEIGHTS,
-    OBJECTIVE_AFFINITY,
+    FORMAT_REQUIRED_SKILLS,
     PLATFORM_NAMES,
-    PROFILE_AFFINITY,
-    STATUS_TIE_BREAK,
-    TIME_AFFINITY,
+    PLATFORM_REFERENCE,
+    VIDEO_FORMATS,
+    VISUAL_FORMATS,
 )
 
 
-def _mean_affinity(
-    selections: list[str],
-    matrix: dict[str, dict[str, float]],
-) -> dict[str, float]:
-    usable = [selection for selection in selections if selection in matrix]
-    if not usable:
-        return {platform: 50.0 for platform in PLATFORM_NAMES}
-    return {
-        platform: mean(matrix[selection][platform] for selection in usable)
-        for platform in PLATFORM_NAMES
-    }
+STATUS_ORDER = {"vert": 0, "orange": 1, "rouge": 2}
 
 
-def calculate_platform_scores(answers: dict) -> tuple[dict[str, float], str | None, bool]:
-    profile_scores = _mean_affinity(answers.get("q2", []), PROFILE_AFFINITY)
-    target_networks = [
-        network
-        for network in answers.get("q4", [])
-        if network in PLATFORM_NAMES
+def required_skills_for_formats(formats: list[str]) -> set[str]:
+    required: set[str] = set()
+    for content_format in formats:
+        required.update(FORMAT_REQUIRED_SKILLS.get(content_format, set()))
+    return required
+
+
+def strategic_control(answers: dict) -> dict:
+    blocking = []
+    review = []
+
+    if answers.get("q1") == "Non":
+        blocking.append("Finaliser le persona de la clientèle recherchée.")
+    elif answers.get("q1") == "Partiellement":
+        review.append("Finaliser les informations encore partielles du persona.")
+
+    profiles = [
+        profile
+        for profile in answers.get("q2", [])
+        if profile != "Non identifié"
     ]
-    has_known_network = bool(target_networks)
-    objective = answers.get("q6", "Autre")
-    objective_scores = OBJECTIVE_AFFINITY.get(
-        objective, OBJECTIVE_AFFINITY["Autre"]
-    )
-    time = answers.get("q8", "Non évalué")
-    time_scores = TIME_AFFINITY.get(time, TIME_AFFINITY["Non évalué"])
+    if not profiles:
+        blocking.append("Identifier au moins un profil cible.")
 
-    weight_total = sum(COHERENCE_WEIGHTS.values())
+    if answers.get("q3") == "Non" or not answers.get("priority_need", "").strip():
+        blocking.append(
+            "Définir le besoin prioritaire auquel le cabinet souhaite répondre."
+        )
+    elif answers.get("q3") == "Partiellement":
+        review.append("Compléter le recensement des besoins de la cible.")
 
-    scores = {}
-    for platform in PLATFORM_NAMES:
-        components = {
-            "profile": profile_scores[platform],
-            "objective": objective_scores[platform],
-            "time": time_scores[platform],
-        }
-        scores[platform] = round(
-            sum(
-                components[key] * weight
-                for key, weight in COHERENCE_WEIGHTS.items()
-            )
-            / weight_total,
-            1,
+    if answers.get("q2_coherence") == "Non":
+        blocking.append(
+            "Réaliser un diagnostic distinct pour les personas qui ne partagent "
+            "pas le même besoin et les mêmes canaux d’information."
+        )
+    elif answers.get("q2_coherence") == "Partiellement":
+        review.append(
+            "Vérifier que les profils peuvent réellement être analysés ensemble."
         )
 
-    # Lorsque les canaux d'information de la cible sont connus, CAP ne
-    # recommande pas une plateforme sur laquelle elle ne recherche pas les
-    # informations liées au besoin traité par le cabinet. Ce critère forme un
-    # filtre. L'objectif SMART départage en priorité les réseaux éligibles,
-    # complété par le profil de la cible et, marginalement, par le temps.
-    # Si ces canaux sont inconnus, les quatre plateformes restent comparées à
-    # titre indicatif.
-    eligible_platforms = target_networks if has_known_network else PLATFORM_NAMES
-    ranking = sorted(
-        ((platform, scores[platform]) for platform in eligible_platforms),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-    top_name, top_score = ranking[0]
-    unresolved = False
-
-    if len(ranking) == 1:
-        return scores, top_name, unresolved
-
-    second_name, second_score = ranking[1]
-
-    # Le compte existant n'intervient qu'en dernier recours. Une simple
-    # ouverture de compte ou un compte inactif ne modifie pas la recommandation.
-    if top_score - second_score <= 1.5:
-        statuses = answers.get("q7", {})
-        top_bonus = STATUS_TIE_BREAK.get(
-            statuses.get(top_name, "Aucun compte"), 0
+    eligible = [
+        network for network in answers.get("q4", []) if network in PLATFORM_NAMES
+    ]
+    if not eligible:
+        blocking.append(
+            "Identifier au moins un réseau sur lequel la cible recherche cette "
+            "information."
         )
-        second_bonus = STATUS_TIE_BREAK.get(
-            statuses.get(second_name, "Aucun compte"), 0
+
+    discovery_modes = [
+        mode
+        for mode in answers.get("q4_modes", [])
+        if mode not in {"Non identifié", "Plusieurs usages"}
+    ]
+    if not discovery_modes and "Plusieurs usages" not in answers.get("q4_modes", []):
+        blocking.append(
+            "Préciser comment la cible accède habituellement à cette information."
         )
-        if top_bonus != second_bonus:
-            scores[top_name] = round(scores[top_name] + top_bonus, 1)
-            scores[second_name] = round(scores[second_name] + second_bonus, 1)
-            ranking = sorted(
-                ((platform, scores[platform]) for platform in eligible_platforms),
-                key=lambda item: item[1],
-                reverse=True,
-            )
-            top_name, top_score = ranking[0]
-            second_name, second_score = ranking[1]
-
-    if top_score - second_score <= 1.5:
-        top_name = None
-        unresolved = True
-
-    return scores, top_name, unresolved
-
-
-def calculate_reliability(answers: dict) -> tuple[float, str]:
-    persona = {"Oui": 25, "Partiellement": 12.5, "Non": 0}.get(
-        answers.get("q1"), 0
-    )
-    needs = {"Oui": 20, "Partiellement": 10, "Non": 0}.get(
-        answers.get("q3"), 0
-    )
-
-    target_networks = answers.get("q4", [])
-    if any(network in PLATFORM_NAMES for network in target_networks):
-        networks = 25
-    elif "Autre réseau" in target_networks:
-        networks = 10
-    else:
-        networks = 0
 
     sources = [
         source for source in answers.get("q5", []) if source != "Aucune source"
     ]
-    if len(sources) >= 2:
-        source_score = 30
-    elif len(sources) == 1:
-        source_score = 15
-    else:
-        source_score = 0
-
-    score = float(persona + needs + networks + source_score)
-
-    # Une information structurante manquante empêche de présenter le
-    # diagnostic comme pleinement documenté, même si les autres rubriques
-    # sont complètes.
-    if not any(network in PLATFORM_NAMES for network in target_networks):
-        score = min(score, 65.0)
-    if answers.get("q3") == "Non":
-        score = min(score, 65.0)
-    if answers.get("q1") == "Partiellement":
-        score = min(score, 74.0)
     if not sources:
-        score = min(score, 49.0)
-    if score >= 75:
-        label = "Informations documentées"
-    elif score >= 50:
-        label = "Informations partielles"
-    else:
-        label = "Résultat indicatif"
-    return score, label
+        blocking.append(
+            "Documenter le comportement de la cible à partir d’au moins une source."
+        )
+    elif len(sources) == 1:
+        review.append("Recouper l’information avec une seconde source.")
 
+    quality = answers.get("q5_quality")
+    if quality == "Anciennes ou non vérifiées":
+        blocking.append(
+            "Actualiser et vérifier les informations relatives aux canaux de la cible."
+        )
+    elif quality == "Partiellement vérifiées":
+        review.append("Recouper les informations encore partiellement vérifiées.")
 
-def build_reliability_notes(answers: dict) -> list[str]:
-    notes = []
-    if answers.get("q1") == "Partiellement":
-        notes.append("persona à finaliser")
-
-    if answers.get("q3") == "Partiellement":
-        notes.append("besoins à compléter")
-    elif answers.get("q3") == "Non":
-        notes.append("besoins à recenser")
-
-    if not any(network in PLATFORM_NAMES for network in answers.get("q4", [])):
-        notes.append("canaux d’information de la cible à documenter")
-
-    sources = [
-        source for source in answers.get("q5", []) if source != "Aucune source"
-    ]
-    if len(sources) == 1:
-        notes.append("seconde source à ajouter")
-    elif not sources:
-        notes.append("sources à documenter")
-
-    return notes
-
-
-def calculate_readiness(
-    answers: dict,
-    winner: str | None = None,
-) -> tuple[float, str]:
-    time_score = {
-        "Moins de 2 h": 8,
-        "2 à 5 h": 18,
-        "6 à 10 h": 26,
-        "Plus de 10 h": 30,
-        "Non évalué": 0,
-    }.get(answers.get("q8"), 0)
-
-    competency_value = {"À acquérir": 0, "Notions": 0.5, "Autonome": 1}
-    competencies = answers.get("q9", {})
-    required_skills = REQUIRED_SKILLS_BY_PLATFORM.get(winner, set(competencies))
-    relevant_competencies = {
-        skill: level
-        for skill, level in competencies.items()
-        if skill in required_skills
-    }
-    skill_score = 30 * mean(
-        competency_value.get(level, 0)
-        for level in relevant_competencies.values()
-    ) if relevant_competencies else 0
-
-    equipment = set(answers.get("q10", []))
-    equipment_score = 0
-    if "Smartphone récent" in equipment or "Caméra" in equipment:
-        equipment_score += 8
-    if "Connexion stable" in equipment:
-        equipment_score += 5
-    if "Ordinateur" in equipment:
-        equipment_score += 3
-    if equipment.intersection({"Micro", "Ring light", "Studio équipé"}):
-        equipment_score += 4
-
-    pilot_score = 0 if answers.get("q11") == "Non défini" else 10
-
-    support = set(answers.get("q12", []))
-    missing_skills = any(
-        level == "À acquérir"
-        for level in relevant_competencies.values()
-    )
-    if support.intersection(
-        {"Autoformation", "Formation", "Appui interne", "Prestataire externe", "Autre solution"}
+    if answers.get("q6") in {None, "", "Non défini"}:
+        blocking.append("Définir l’objectif poursuivi par le cabinet.")
+    if not all(
+        str(answers.get(field, "")).strip()
+        for field in ("indicator", "target", "deadline")
     ):
-        support_score = 5
-    elif not missing_skills and "Aucun appui" in support:
-        support_score = 5
-    elif "Aucun appui" in support:
-        support_score = 1
-    else:
-        support_score = 0
-
-    budget_score = {
-        "Aucun budget": 3,
-        "Moins de 50 €": 4,
-        "50 à 150 €": 5,
-        "Plus de 150 €": 5,
-        "Non évalué": 0,
-    }.get(answers.get("q13"), 0)
-
-    score = round(
-        min(
-            100,
-            time_score
-            + skill_score
-            + equipment_score
-            + pilot_score
-            + support_score
-            + budget_score,
-        ),
-        1,
-    )
-
-    # Le niveau de préparation doit rester cohérent avec la plateforme
-    # recommandée. Un temps inférieur au minimum de référence empêche
-    # d'afficher un lancement immédiatement opérationnel.
-    if winner:
-        minimum_time = MINIMUM_TIME_BY_PLATFORM[winner]
-        time_gap = TIME_RANK[minimum_time] - TIME_RANK.get(
-            answers.get("q8", "Non évalué"),
-            0,
+        blocking.append(
+            "Préciser l’indicateur, le résultat attendu et l’échéance de l’objectif."
         )
-        if time_gap >= 2:
-            score = min(score, 49.0)
-        elif time_gap == 1:
-            score = min(score, 74.0)
+    if answers.get("q6_treatment") in {None, "", "Non défini"}:
+        blocking.append("Choisir le traitement éditorial adapté au projet.")
+    if answers.get("q6_effect") in {None, "", "Non défini"}:
+        blocking.append("Préciser l’effet principal recherché auprès de l’audience.")
 
-    if score >= 75:
-        label = "Prêt à démarrer"
-    elif score >= 50:
-        label = "À compléter"
-    else:
-        label = "À préparer"
-    return score, label
-
-
-MINIMUM_TIME_BY_PLATFORM = {
-    "Facebook": "2 à 5 h",
-    "Instagram": "6 à 10 h",
-    "TikTok": "6 à 10 h",
-    "YouTube": "Plus de 10 h",
-}
-
-TIME_RANK = {
-    "Non évalué": 0,
-    "Moins de 2 h": 1,
-    "2 à 5 h": 2,
-    "6 à 10 h": 3,
-    "Plus de 10 h": 4,
-}
-
-REQUIRED_SKILLS_BY_PLATFORM = {
-    "Facebook": {"Rédaction / script", "Création"},
-    "Instagram": {"Rédaction / script", "Création", "Montage"},
-    "TikTok": {
-        "Rédaction / script",
-        "Création",
-        "Montage",
-        "Aisance face caméra",
-    },
-    "YouTube": {
-        "Rédaction / script",
-        "Création",
-        "Montage",
-        "Aisance face caméra",
-    },
-}
+    if blocking:
+        return {
+            "status": "Recommandation impossible",
+            "blocking": blocking,
+            "review": review,
+        }
+    if review:
+        return {
+            "status": "Projet à revoir",
+            "blocking": [],
+            "review": review,
+        }
+    return {"status": "Choix validé", "blocking": [], "review": []}
 
 
-def build_launch_actions(answers: dict, winner: str | None) -> list[str]:
-    """Transforme les limites opérationnelles en actions à réaliser avant lancement."""
-    actions = []
-    time = answers.get("q8", "Non évalué")
+def _platform_correspondences(answers: dict, platform: str) -> list[str]:
+    reference = PLATFORM_REFERENCE[platform]
+    correspondences = []
+    if answers.get("q6") in reference["objectives"]:
+        correspondences.append("objectif")
 
-    if winner:
-        minimum_time = MINIMUM_TIME_BY_PLATFORM[winner]
-        if TIME_RANK.get(time, 0) < TIME_RANK[minimum_time]:
-            actions.append(
-                f"Inscrire au plan de charge une enveloppe de {minimum_time} par mois "
-                f"pour préparer, publier et suivre les contenus sur {winner}."
+    selected_modes = set(answers.get("q4_modes", []))
+    if "Plusieurs usages" in selected_modes:
+        selected_modes = set().union(
+            *(
+                PLATFORM_REFERENCE[name]["discovery_modes"]
+                for name in answers.get("q4", [])
+                if name in PLATFORM_REFERENCE
             )
-    elif time == "Non évalué":
-        actions.append(
-            "Évaluer le temps mensuel réellement disponible dans le plan de charge."
         )
+    if selected_modes.intersection(reference["discovery_modes"]):
+        correspondences.append("mode de découverte")
+    if answers.get("q6_treatment") == reference["editorial_treatment"]:
+        correspondences.append("traitement éditorial")
+    if answers.get("q6_effect") == reference["audience_effect"]:
+        correspondences.append("effet recherché")
+    return correspondences
 
-    skills = answers.get("q9", {})
-    required_skills = REQUIRED_SKILLS_BY_PLATFORM.get(winner, set(skills))
-    missing_skills = {
-        skill
-        for skill in required_skills
-        if skills.get(skill, "À acquérir") == "À acquérir"
+
+def compare_platforms(answers: dict) -> dict:
+    control = strategic_control(answers)
+    eligible = [
+        network for network in answers.get("q4", []) if network in PLATFORM_NAMES
+    ]
+    comparison = {
+        platform: _platform_correspondences(answers, platform)
+        for platform in eligible
     }
 
-    if "Rédaction / script" in missing_skills:
-        actions.append(
-            "Préparer un modèle de script réutilisable avec une accroche, un message "
-            "principal et un appel à l’action."
+    if control["status"] == "Recommandation impossible" or not eligible:
+        return {
+            "winner": None,
+            "tied_platforms": [],
+            "comparison": comparison,
+            "tie_break": None,
+        }
+
+    best_count = max(len(items) for items in comparison.values())
+    tied = [
+        platform
+        for platform, items in comparison.items()
+        if len(items) == best_count
+    ]
+    if len(tied) == 1:
+        return {
+            "winner": tied[0],
+            "tied_platforms": [],
+            "comparison": comparison,
+            "tie_break": "caractéristiques de la plateforme",
+        }
+
+    statuses = answers.get("q7", {})
+    result_rank = {
+        platform: {
+            "Contacts obtenus": 2,
+            "Audience cible engagée": 1,
+        }.get(statuses.get(platform, "Aucun compte"), 0)
+        for platform in tied
+    }
+    highest_result = max(result_rank.values(), default=0)
+    result_leaders = [
+        platform
+        for platform in tied
+        if result_rank[platform] == highest_result
+    ]
+    if highest_result > 0 and len(result_leaders) == 1:
+        return {
+            "winner": result_leaders[0],
+            "tied_platforms": [],
+            "comparison": comparison,
+            "tie_break": "résultats déjà obtenus auprès de la cible",
+        }
+
+    # Le compte actif n’intervient qu’en l’absence de résultat qualifié.
+    if highest_result == 0:
+        active_rank = {
+            platform: int(statuses.get(platform) == "Compte actif")
+            for platform in tied
+        }
+        active_leaders = [
+            platform
+            for platform in tied
+            if active_rank[platform] == max(active_rank.values(), default=0)
+        ]
+        if max(active_rank.values(), default=0) > 0 and len(active_leaders) == 1:
+            return {
+                "winner": active_leaders[0],
+                "tied_platforms": [],
+                "comparison": comparison,
+                "tie_break": "compte déjà actif",
+            }
+
+    return {
+        "winner": None,
+        "tied_platforms": tied,
+        "comparison": comparison,
+        "tie_break": "égalité reconnue",
+    }
+
+
+def _criterion(name: str, status: str, observation: str, action: str) -> dict:
+    return {
+        "criterion": name,
+        "status": status,
+        "observation": observation,
+        "action": action,
+    }
+
+
+def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
+    rows = []
+    formats = list(answers.get("q14", []))
+    skills = answers.get("q9", {})
+    required_skills = required_skills_for_formats(formats)
+
+    time = answers.get("q8", "Non évalué")
+    if time == "Aucun temps disponible":
+        rows.append(
+            _criterion(
+                "Temps disponible",
+                "rouge",
+                "Aucun temps ne peut être consacré au projet.",
+                "Reporter le lancement ou dégager une disponibilité réelle.",
+            )
+        )
+    elif time in {"Non évalué", "Moins de 2 h"}:
+        rows.append(
+            _criterion(
+                "Temps disponible",
+                "orange",
+                "Le temps est insuffisamment établi pour confirmer le rythme.",
+                "Mesurer la charge et adapter le rythme de publication.",
+            )
+        )
+    else:
+        rows.append(
+            _criterion(
+                "Temps disponible",
+                "vert",
+                "Une disponibilité mensuelle a été définie.",
+                "Inscrire ce temps dans le plan de charge.",
+            )
         )
 
-    production_skills = missing_skills.intersection({"Création", "Montage"})
-    if production_skills:
-        actions.append(
-            "Réaliser un premier contenu non publié afin de maîtriser sa création, "
-            "son montage et son sous-titrage."
+    if platform and not formats:
+        rows.append(
+            _criterion(
+                "Formats et compétences",
+                "orange",
+                f"Aucun format propre à {platform} n’a été retenu.",
+                "Choisir au moins un format régulier avant le lancement.",
+            )
         )
-
-    if "Aisance face caméra" in missing_skills:
-        actions.append(
-            "Enregistrer deux essais non publiés pour travailler la prise de parole "
-            "face caméra avant le premier tournage."
-        )
+    else:
+        missing = {
+            skill
+            for skill in required_skills
+            if skills.get(skill, "À acquérir") == "À acquérir"
+        }
+        partial = {
+            skill
+            for skill in required_skills
+            if skills.get(skill) == "Notions"
+        }
+        support_status = answers.get("q12_status", "Non évalué")
+        if missing and support_status in {
+            "Aide indispensable sans solution",
+            "Aucune aide nécessaire",
+            "Non évalué",
+        }:
+            rows.append(
+                _criterion(
+                    "Formats et compétences",
+                    "rouge",
+                    "Une compétence indispensable manque sans solution organisée.",
+                    "Prévoir une formation, un appui ou un prestataire avant de commencer.",
+                )
+            )
+        elif missing or partial:
+            rows.append(
+                _criterion(
+                    "Formats et compétences",
+                    "orange",
+                    "Certaines compétences doivent encore être consolidées.",
+                    "Produire un contenu d’essai et organiser l’aide nécessaire.",
+                )
+            )
+        else:
+            rows.append(
+                _criterion(
+                    "Formats et compétences",
+                    "vert",
+                    "Les compétences utiles aux formats choisis sont disponibles.",
+                    "Formaliser la méthode de production retenue.",
+                )
+            )
 
     equipment = set(answers.get("q10", []))
-    if not equipment.intersection({"Smartphone récent", "Caméra"}):
-        actions.append(
-            "Prévoir un smartphone récent ou une caméra avant la première production."
+    selected = set(formats)
+    lacks_capture = not equipment.intersection({"Smartphone récent", "Caméra"})
+    lacks_workstation = "Ordinateur" not in equipment
+    if "Aucun matériel" in equipment or (
+        selected.intersection(VIDEO_FORMATS) and lacks_capture
+    ) or (
+        selected.intersection(VISUAL_FORMATS) and lacks_capture and lacks_workstation
+    ):
+        rows.append(
+            _criterion(
+                "Matériel",
+                "rouge",
+                "Le matériel indispensable aux formats retenus n’est pas disponible.",
+                "Acquérir, emprunter ou louer le matériel avant le lancement.",
+            )
         )
     elif "Connexion stable" not in equipment:
-        actions.append(
-            "Vérifier une connexion stable pour programmer les publications et "
-            "consulter les statistiques."
+        rows.append(
+            _criterion(
+                "Matériel",
+                "orange",
+                "La connexion nécessaire à la publication et au suivi reste à vérifier.",
+                "Tester la connexion et les outils avant la première publication.",
+            )
+        )
+    else:
+        rows.append(
+            _criterion(
+                "Matériel",
+                "vert",
+                "Le matériel nécessaire est disponible.",
+                "Préparer un espace de stockage et les accès utiles.",
+            )
         )
 
-    if answers.get("q11") == "Non défini":
-        actions.append(
-            "Désigner la personne responsable de la préparation, de la publication "
-            "et du suivi des contenus."
+    if answers.get("q11") in {None, "", "Non défini"}:
+        rows.append(
+            _criterion(
+                "Responsable",
+                "rouge",
+                "Personne ne peut encore prendre en charge le projet.",
+                "Désigner un responsable et définir ses tâches avant le lancement.",
+            )
+        )
+    else:
+        rows.append(
+            _criterion(
+                "Responsable",
+                "vert",
+                "Le pilotage du projet est attribué.",
+                "Préciser les tâches de préparation, validation, publication et réponse.",
+            )
         )
 
-    support = set(answers.get("q12", []))
-    if missing_skills and support.intersection({"Aucun appui", "Non défini"}):
-        actions.append(
-            "Choisir une autoformation, une formation ou un appui externe pour les "
-            "compétences qui ne sont pas encore maîtrisées."
+    support_status = answers.get("q12_status", "Non évalué")
+    if support_status == "Aide indispensable sans solution":
+        rows.append(
+            _criterion(
+                "Aide prévue",
+                "rouge",
+                "Une aide est indispensable, mais aucune solution n’a été recherchée.",
+                "Trouver un accompagnement avant de commencer.",
+            )
+        )
+    elif support_status in {
+        "Aide envisagée mais non organisée",
+        "Non évalué",
+    }:
+        rows.append(
+            _criterion(
+                "Aide prévue",
+                "orange",
+                "L’aide nécessaire n’est pas encore organisée.",
+                "Choisir la formation ou la personne qui accompagnera le cabinet.",
+            )
+        )
+    else:
+        rows.append(
+            _criterion(
+                "Aide prévue",
+                "vert",
+                "Le cabinet est autonome ou dispose déjà de l’aide nécessaire.",
+                "Conserver les coordonnées et modalités de cet appui.",
+            )
         )
 
-    if answers.get("q13") == "Non évalué":
-        actions.append(
-            "Chiffrer le matériel et les éventuels besoins de formation avant de "
-            "valider le budget de lancement."
+    budget = answers.get("q13", "Non évalué")
+    if budget == "Dépense indispensable non finançable":
+        rows.append(
+            _criterion(
+                "Budget nécessaire",
+                "rouge",
+                "Une dépense indispensable ne peut pas être financée.",
+                "Choisir une solution moins coûteuse ou reporter le lancement.",
+            )
+        )
+    elif budget in {"Montant à confirmer", "Non évalué"}:
+        rows.append(
+            _criterion(
+                "Budget nécessaire",
+                "orange",
+                "Une dépense est envisagée, mais son montant reste à confirmer.",
+                "Chiffrer et valider le coût avant le lancement.",
+            )
+        )
+    else:
+        rows.append(
+            _criterion(
+                "Budget nécessaire",
+                "vert",
+                "Aucune dépense n’est nécessaire ou le budget couvre les besoins.",
+                "Suivre les dépenses réellement engagées.",
+            )
         )
 
-    if not actions:
-        actions.append(
-            "Programmer la première publication et fixer un point de contrôle après "
-            "un mois pour vérifier la charge réellement consommée."
-        )
+    worst = max((STATUS_ORDER[row["status"]] for row in rows), default=1)
+    if worst == STATUS_ORDER["rouge"]:
+        label = "Lancement à reporter"
+    elif worst == STATUS_ORDER["orange"]:
+        label = "Lancement à préparer"
+    else:
+        label = "Projet prêt"
 
-    return actions
-
-
-def build_decision_notes(answers: dict, unresolved: bool) -> list[str]:
-    """Liste uniquement les données de décision qui doivent encore être fiabilisées."""
-    notes = []
-    if answers.get("q1") == "Partiellement":
-        notes.append("Finaliser le persona de la clientèle recherchée.")
-    if answers.get("q3") == "Non":
-        notes.append("Recenser les besoins prioritaires de la cible.")
-    elif answers.get("q3") == "Partiellement":
-        notes.append("Compléter le recensement des besoins de la cible.")
-    if not any(network in PLATFORM_NAMES for network in answers.get("q4", [])):
-        notes.append(
-            "Documenter les réseaux sur lesquels la cible recherche les "
-            "informations liées à son besoin."
-        )
-    sources = [
-        source for source in answers.get("q5", []) if source != "Aucune source"
+    actions = [
+        row["action"]
+        for row in rows
+        if row["status"] in {"orange", "rouge"}
     ]
-    if len(sources) < 2:
-        notes.append("Croiser les informations du persona avec une seconde source.")
-    if unresolved:
-        notes.insert(
-            0,
-            "Préciser le profil cible ou ses canaux d’information pour "
-            "départager les plateformes.",
+    return {"label": label, "rows": rows, "actions": actions}
+
+
+def build_selection_reasons(platform: str | None, comparison: dict) -> list[str]:
+    if not platform:
+        return []
+    reference = PLATFORM_REFERENCE[platform]
+    reasons = []
+    matched = comparison.get(platform, [])
+    if "objectif" in matched:
+        reasons.append("La plateforme peut contribuer à l’objectif retenu.")
+    if "mode de découverte" in matched:
+        reasons.append(
+            f"Son mode d’accès dominant repose sur {reference['discovery_label']}."
         )
-    return notes
+    if "traitement éditorial" in matched:
+        reasons.append(
+            f"Le traitement attendu correspond à {reference['treatment_label']}."
+        )
+    if "effet recherché" in matched:
+        reasons.append(
+            f"L’effet recherché est la {reference['effect_label']}."
+        )
+    return reasons
 
 
 def evaluate(answers: dict) -> dict:
-    scores, winner, unresolved = calculate_platform_scores(answers)
-    reliability, reliability_label = calculate_reliability(answers)
-    reliability_notes = build_reliability_notes(answers)
-    readiness, readiness_label = calculate_readiness(answers, winner)
-    decision_notes = build_decision_notes(answers, unresolved)
-    launch_actions = build_launch_actions(answers, winner)
+    control = strategic_control(answers)
+    selection = compare_platforms(answers)
+    winner = selection["winner"]
+    observation_platform = answers.get("q15")
+    if observation_platform not in selection["tied_platforms"]:
+        observation_platform = None
+    platform_for_launch = winner or observation_platform
+    feasibility = evaluate_feasibility(answers, platform_for_launch)
+
+    if control["status"] == "Recommandation impossible":
+        winner = None
+        platform_for_launch = None
+
     return {
-        "scores": scores,
+        "strategic_status": control["status"],
+        "blocking_reason": " ".join(control["blocking"]) or None,
+        "decision_notes": control["blocking"] + control["review"],
         "winner": winner,
-        "unresolved": unresolved,
-        "reliability": reliability,
-        "reliability_label": reliability_label,
-        "reliability_notes": reliability_notes,
-        "readiness": readiness,
-        "readiness_label": readiness_label,
-        "decision_notes": decision_notes,
-        "launch_actions": launch_actions,
-        # Conservé pour la compatibilité avec les premières synthèses.
-        "alerts": decision_notes + launch_actions,
+        "tied_platforms": selection["tied_platforms"],
+        "observation_platform": observation_platform,
+        "platform_for_launch": platform_for_launch,
+        "comparison": selection["comparison"],
+        "tie_break": selection["tie_break"],
+        "selection_reasons": build_selection_reasons(
+            winner, selection["comparison"]
+        ),
+        "feasibility_label": feasibility["label"],
+        "feasibility_rows": feasibility["rows"],
+        "launch_actions": feasibility["actions"],
+        # Alias conservé pour l’export et les intégrations antérieures.
+        "alerts": control["blocking"] + control["review"] + feasibility["actions"],
     }

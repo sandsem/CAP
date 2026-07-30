@@ -4,27 +4,32 @@ from html import escape
 import streamlit as st
 
 from config import (
+    AUDIENCE_EFFECT_OPTIONS,
     APP_SUPPORT_OPTIONS,
     BUDGET_OPTIONS,
     COMPETENCY_LEVELS,
+    DISCOVERY_MODE_OPTIONS,
+    EDITORIAL_TREATMENT_OPTIONS,
+    EVIDENCE_QUALITY_OPTIONS,
     EQUIPMENT_OPTIONS,
     INDICATOR_OPTIONS,
     OBJECTIVE_OPTIONS,
     PILOT_OPTIONS,
+    PLATFORM_FORMATS,
     PLATFORM_NAMES,
     PLATFORM_STATUS_OPTIONS,
     PROFILE_OPTIONS,
     SOURCE_OPTIONS,
+    SUPPORT_STATUS_OPTIONS,
     TARGET_NETWORK_OPTIONS,
     TIME_OPTIONS,
 )
 from pdf_export import build_summary_pdf
-from scoring import evaluate
+from scoring import compare_platforms, evaluate, required_skills_for_formats
 
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "logo_cap.svg"
-GUIDES_DIR = BASE_DIR / "guides"
 
 st.set_page_config(
     page_title="CAP — Choix de plateforme",
@@ -610,6 +615,39 @@ def target_page() -> None:
         horizontal=True,
         key="target_needs",
     )
+    priority_need = st.text_input(
+        "Quel besoin prioritaire votre cible cherche-t-elle à résoudre ?",
+        value=answers.get("priority_need", ""),
+        placeholder="Ex. passer de la micro-entreprise à une société",
+        key="target_priority_need",
+    )
+    if q3 == "Non":
+        st.warning(
+            "Recensez au moins un besoin prioritaire avant de poursuivre le diagnostic."
+        )
+
+    if len(q2) > 1:
+        q2_coherence = st.radio(
+            "Ces profils partagent-ils le même besoin prioritaire et les mêmes canaux d’information ?",
+            ["Oui", "Partiellement", "Non"],
+            index=["Oui", "Partiellement", "Non"].index(
+                answers.get("q2_coherence", "Oui")
+            ),
+            horizontal=True,
+            key="target_profile_coherence",
+        )
+        if q2_coherence == "Partiellement":
+            st.warning(
+                "Vérifiez que ces profils peuvent réellement être analysés ensemble."
+            )
+        elif q2_coherence == "Non":
+            st.warning(
+                "Réalisez un diagnostic distinct pour chaque persona afin d’éviter "
+                "une recommandation moyenne et peu exploitable."
+            )
+    else:
+        q2_coherence = "Oui"
+
     q4 = select_many(
         "Sur quels réseaux votre cible recherche-t-elle des informations liées au besoin auquel votre cabinet souhaite répondre ?",
         TARGET_NETWORK_OPTIONS,
@@ -617,11 +655,27 @@ def target_page() -> None:
         "target_networks",
         "Ne retenez pas ses réseaux de divertissement s’ils ne sont pas utilisés pour rechercher cette information.",
     )
+    q4_modes = select_many(
+        "Comment accède-t-elle habituellement à cette information ?",
+        DISCOVERY_MODE_OPTIONS,
+        answers.get("q4_modes", []),
+        "target_discovery_modes",
+        "Sélectionnez les usages réellement observés, et non les fonctions simplement disponibles sur la plateforme.",
+    )
     q5 = select_many(
         "D’où viennent vos informations ?",
         SOURCE_OPTIONS,
         answers.get("q5", []),
         "target_sources",
+    )
+    q5_quality = st.radio(
+        "Les informations relatives aux canaux utilisés par votre cible sont-elles récentes et concordantes ?",
+        EVIDENCE_QUALITY_OPTIONS,
+        index=EVIDENCE_QUALITY_OPTIONS.index(
+            answers.get("q5_quality", EVIDENCE_QUALITY_OPTIONS[0])
+        ),
+        horizontal=True,
+        key="target_evidence_quality",
     )
 
     back, forward = render_nav("prepare")
@@ -635,15 +689,43 @@ def target_page() -> None:
             errors.append("Identifiez au moins un profil cible.")
         if len(q2) > 3:
             errors.append("Sélectionnez trois profils au maximum.")
+        if q3 == "Non" or not priority_need.strip():
+            errors.append(
+                "Précisez au moins un besoin prioritaire de la cible avant de poursuivre."
+            )
+        if q2_coherence == "Non":
+            errors.append(
+                "Réalisez un diagnostic distinct pour chaque persona sélectionné."
+            )
         if "Non identifié" in q4 and len(q4) > 1:
             errors.append("« Non identifié » ne peut pas être associé à un réseau.")
+        if not q4_modes or "Non identifié" in q4_modes:
+            errors.append(
+                "Précisez comment la cible accède habituellement à cette information."
+            )
+        if "Plusieurs usages" in q4_modes and len(q4_modes) > 1:
+            errors.append(
+                "« Plusieurs usages » ne peut pas être associé à un autre mode d’accès."
+            )
         if "Aucune source" in q5 and len(q5) > 1:
             errors.append("« Aucune source » ne peut pas être associée à une autre source.")
         if errors:
             for error in errors:
                 st.error(error)
         else:
-            answers.update({"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
+            answers.update(
+                {
+                    "q1": q1,
+                    "q2": q2,
+                    "q2_coherence": q2_coherence,
+                    "q3": q3,
+                    "priority_need": priority_need.strip(),
+                    "q4": q4,
+                    "q4_modes": q4_modes,
+                    "q5": q5,
+                    "q5_quality": q5_quality,
+                }
+            )
             next_screen("objective")
 
 
@@ -656,6 +738,27 @@ def objective_page() -> None:
         OBJECTIVE_OPTIONS,
         index=OBJECTIVE_OPTIONS.index(answers.get("q6", OBJECTIVE_OPTIONS[0])),
         key="objective_choice",
+    )
+
+    q6_treatment = st.selectbox(
+        "Comment souhaitez-vous traiter vos contenus ?",
+        EDITORIAL_TREATMENT_OPTIONS,
+        index=EDITORIAL_TREATMENT_OPTIONS.index(
+            answers.get("q6_treatment", EDITORIAL_TREATMENT_OPTIONS[0])
+        ),
+        help=(
+            "Ce choix décrit la manière dont le cabinet souhaite présenter son "
+            "expertise, indépendamment du format utilisé."
+        ),
+        key="objective_treatment",
+    )
+    q6_effect = st.selectbox(
+        "Quel effet principal recherchez-vous auprès de l’audience ?",
+        AUDIENCE_EFFECT_OPTIONS,
+        index=AUDIENCE_EFFECT_OPTIONS.index(
+            answers.get("q6_effect", AUDIENCE_EFFECT_OPTIONS[0])
+        ),
+        key="objective_effect",
     )
 
     indicator_options = INDICATOR_OPTIONS.get(q6, ["Autre indicateur"])
@@ -712,12 +815,18 @@ def objective_page() -> None:
     if forward:
         if q6 == "Non défini":
             st.error("Objectif non défini — formalisez votre objectif avant de poursuivre.")
+        elif q6_treatment == "Non défini" or q6_effect == "Non défini":
+            st.error(
+                "Précisez le traitement éditorial et l’effet recherché avant de poursuivre."
+            )
         elif not indicator.strip() or not target.strip() or not deadline.strip():
             st.error("Renseignez l’indicateur, le résultat attendu et l’échéance.")
         else:
             answers.update(
                 {
                     "q6": q6,
+                    "q6_treatment": q6_treatment,
+                    "q6_effect": q6_effect,
                     "indicator": indicator.strip(),
                     "target": target.strip(),
                     "deadline": deadline.strip(),
@@ -777,6 +886,43 @@ def resources_page() -> None:
     answers = st.session_state.answers
     step_header(4, "Vos moyens", "Le temps et les ressources réellement mobilisables.")
 
+    preview = compare_platforms(answers)
+    recommended = preview["winner"]
+    tied_platforms = preview["tied_platforms"]
+    observation_platform = None
+
+    if recommended:
+        st.info(
+            f"Les questions de production sont adaptées à {recommended}, "
+            "la plateforme issue de l’analyse stratégique."
+        )
+        platform_for_formats = recommended
+    elif tied_platforms:
+        st.warning(
+            "Plusieurs plateformes restent équivalentes. Aucun écart artificiel "
+            "n’est créé pour les départager."
+        )
+        observation_options = ["À définir"] + tied_platforms
+        saved_observation = answers.get("q15", "À définir")
+        if saved_observation not in observation_options:
+            saved_observation = "À définir"
+        observation_choice = st.selectbox(
+            "Quelle plateforme souhaitez-vous retenir pour la période d’observation définie dans votre objectif ?",
+            observation_options,
+            index=observation_options.index(saved_observation),
+            key="resources_observation_platform",
+        )
+        observation_platform = (
+            observation_choice if observation_choice in tied_platforms else None
+        )
+        platform_for_formats = observation_platform
+    else:
+        st.warning(
+            "Les formats seront proposés lorsque les informations stratégiques "
+            "permettront d’identifier une plateforme."
+        )
+        platform_for_formats = None
+
     q8 = st.selectbox(
         "Quel temps mensuel pouvez-vous consacrer ?",
         TIME_OPTIONS,
@@ -784,17 +930,36 @@ def resources_page() -> None:
         key="resources_time",
     )
 
-    st.markdown("**Quel est votre niveau ?**")
-    competencies = {}
-    for skill in ["Rédaction / script", "Création", "Montage", "Aisance face caméra"]:
-        previous = answers.get("q9", {}).get(skill, "Notions")
-        competencies[skill] = st.radio(
-            skill,
-            COMPETENCY_LEVELS,
-            index=COMPETENCY_LEVELS.index(previous),
-            horizontal=True,
-            key=f"skill_{skill}",
+    if platform_for_formats:
+        compatible_formats = PLATFORM_FORMATS[platform_for_formats]
+        saved_formats = [
+            content_format
+            for content_format in answers.get("q14", [])
+            if content_format in compatible_formats
+        ]
+        q14 = select_many(
+            f"Quels formats propres à {platform_for_formats} pouvez-vous produire régulièrement ?",
+            compatible_formats,
+            saved_formats,
+            "resources_formats",
+            "Sélectionnez uniquement les formats que le cabinet peut tenir dans la durée.",
         )
+    else:
+        q14 = []
+
+    required_skills = required_skills_for_formats(q14)
+    competencies = {}
+    if required_skills:
+        st.markdown("**Votre niveau pour les compétences réellement nécessaires**")
+        for skill in sorted(required_skills):
+            previous = answers.get("q9", {}).get(skill, "Notions")
+            competencies[skill] = st.radio(
+                skill,
+                COMPETENCY_LEVELS,
+                index=COMPETENCY_LEVELS.index(previous),
+                horizontal=True,
+                key=f"skill_{skill}",
+            )
 
     q10 = select_many(
         "Quel matériel possédez-vous ?",
@@ -814,8 +979,16 @@ def resources_page() -> None:
         answers.get("q12", []),
         "resources_support",
     )
+    q12_status = st.selectbox(
+        "Cette aide est-elle organisée ?",
+        SUPPORT_STATUS_OPTIONS,
+        index=SUPPORT_STATUS_OPTIONS.index(
+            answers.get("q12_status", SUPPORT_STATUS_OPTIONS[0])
+        ),
+        key="resources_support_status",
+    )
     q13 = st.selectbox(
-        "Quel budget pouvez-vous mobiliser ?",
+        "Le budget couvre-t-il les besoins du scénario ?",
         BUDGET_OPTIONS,
         index=BUDGET_OPTIONS.index(answers.get("q13", BUDGET_OPTIONS[0])),
         key="resources_budget",
@@ -826,6 +999,10 @@ def resources_page() -> None:
         navigate("presence")
     if forward:
         errors = []
+        if platform_for_formats and not q14:
+            errors.append(
+                f"Sélectionnez au moins un format que vous pouvez produire sur {platform_for_formats}."
+            )
         if "Aucun matériel" in q10 and len(q10) > 1:
             errors.append("« Aucun matériel » ne peut pas être associé à un équipement.")
         if "Aucun appui" in q12 and len(q12) > 1:
@@ -839,11 +1016,14 @@ def resources_page() -> None:
             answers.update(
                 {
                     "q8": q8,
+                    "q14": q14,
                     "q9": competencies,
                     "q10": q10,
                     "q11": q11,
                     "q12": q12,
+                    "q12_status": q12_status,
                     "q13": q13,
+                    "q15": observation_platform,
                 }
             )
             st.session_state.return_to_review = False
@@ -864,8 +1044,14 @@ def review_page() -> None:
         "Votre cible",
         [
             ("Profils :", join_values(answers.get("q2", []))),
+            ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
             ("Canaux d’information :", join_values(answers.get("q4", []))),
+            ("Mode d’accès :", join_values(answers.get("q4_modes", []))),
             ("Sources :", join_values(answers.get("q5", []))),
+            (
+                "Vérification des informations :",
+                answers.get("q5_quality", "Non renseignée"),
+            ),
         ],
     )
     if st.button("Modifier la cible", type="secondary", key="edit_target"):
@@ -876,6 +1062,8 @@ def review_page() -> None:
         "Votre objectif",
         [
             ("Objectif :", answers.get("q6", "Non renseigné")),
+            ("Traitement éditorial :", answers.get("q6_treatment", "Non renseigné")),
+            ("Effet recherché :", answers.get("q6_effect", "Non renseigné")),
             ("Indicateur :", answers.get("indicator", "Non renseigné")),
             ("Résultat attendu :", answers.get("target", "Non renseigné")),
             ("Échéance :", answers.get("deadline", "Non renseigné")),
@@ -903,10 +1091,16 @@ def review_page() -> None:
         "Vos moyens",
         [
             ("Temps :", answers.get("q8", "Non renseigné")),
+            (
+                "Plateforme d’observation :",
+                answers.get("q15") or "Sans objet",
+            ),
+            ("Formats :", join_values(answers.get("q14", []))),
             ("Compétences :", skill_summary or "Non renseigné"),
             ("Matériel :", join_values(answers.get("q10", []))),
             ("Pilotage :", answers.get("q11", "Non renseigné")),
             ("Appui :", join_values(answers.get("q12", []))),
+            ("Organisation de l’aide :", answers.get("q12_status", "Non renseignée")),
             ("Budget :", answers.get("q13", "Non renseigné")),
         ],
     )
@@ -931,94 +1125,119 @@ def result_page() -> None:
 
     logo()
     st.markdown('<div class="cap-eyebrow">Votre recommandation</div>', unsafe_allow_html=True)
-    readiness_advice = (
-        "Clarifiez d’abord les informations manquantes avant d’organiser le lancement."
-    )
+    strategic_status = result["strategic_status"]
+    winner = result["winner"]
+    tied_platforms = result.get("tied_platforms", [])
+    observation_platform = result.get("observation_platform")
+    platform_for_launch = result.get("platform_for_launch")
 
-    if result["winner"] is None:
-        st.header("Résultat à consolider")
+    if strategic_status == "Recommandation impossible":
+        st.header("Recommandation impossible")
         st.markdown(
-            '<div class="cap-lead" style="margin-left:0">Les informations renseignées ne permettent pas de départager les plateformes de manière suffisamment fiable.</div>',
+            f'<div class="cap-lead" style="margin-left:0">{escape(result.get("blocking_reason") or "Complétez les informations stratégiques.")}</div>',
             unsafe_allow_html=True,
         )
-    else:
-        winner = result["winner"]
-        score = result["scores"][winner]
-        if result["readiness"] >= 75:
-            deployment_text = (
-                "Votre niveau de préparation permet d’engager le déploiement."
-            )
-            readiness_advice = (
-                "Les conditions sont réunies. Programmez vos premières publications "
-                "et suivez leurs résultats."
-            )
-        elif result["readiness"] >= 50:
-            deployment_text = (
-                "Réalisez les actions indiquées ci-dessous avant de programmer "
-                "le lancement."
-            )
-            readiness_advice = (
-                "Complétez les actions indiquées dans l’encadré « Avant de commencer », "
-                "puis programmez un premier mois de publications."
-            )
-        else:
-            deployment_text = (
-                "Cette recommandation ne doit pas encore être déployée. "
-                "Réalisez d’abord les actions indiquées ci-dessous."
-            )
-            readiness_advice = (
-                "Ne commencez pas encore. Réalisez d’abord les actions indiquées "
-                "dans l’encadré « Avant de commencer »."
-            )
+    elif winner:
         st.markdown(
             f"""
             <div class="cap-recommendation">
                 <div class="cap-platform">{escape(winner)}</div>
-                <div class="cap-score">Indice de pertinence&nbsp;: {score:.0f}&nbsp;%</div>
+                <div class="cap-score">Plateforme recommandée</div>
             </div>
             <p class="cap-lead" style="margin-left:0">
-                Parmi les réseaux sur lesquels votre cible recherche ses informations,
-                {escape(winner)} est le plus cohérent avec votre objectif et son profil.
-                Le temps disponible complète l’analyse et détermine surtout votre niveau
-                de préparation. {escape(deployment_text)}
+                Parmi les réseaux réellement utilisés par votre cible pour rechercher
+                cette information, {escape(winner)} présente la meilleure correspondance
+                avec l’objectif, le mode de découverte, le traitement éditorial et
+                l’effet recherchés.
             </p>
             """,
             unsafe_allow_html=True,
         )
+        if result.get("tie_break"):
+            st.caption(f"Critère de départage final : {result['tie_break']}.")
+    elif tied_platforms:
+        st.header("Plateformes équivalentes")
+        platforms_text = ", ".join(tied_platforms)
+        if observation_platform:
+            st.markdown(
+                f"""
+                <div class="cap-lead" style="margin-left:0">
+                    Aucun élément objectif ne permet de départager
+                    {escape(platforms_text)}. {escape(observation_platform)} est retenue
+                    pour la période d’observation définie dans l’objectif. Ce choix
+                    n’indique pas qu’elle est supérieure aux autres.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+                <div class="cap-lead" style="margin-left:0">
+                    Aucun élément objectif ne permet de départager
+                    {escape(platforms_text)}. Retenez une seule plateforme pendant
+                    la période d’observation définie dans votre objectif.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    if result.get("selection_reasons"):
+        st.subheader("Pourquoi cette plateforme ?")
+        for reason in result["selection_reasons"]:
+            st.markdown(f"- {reason}")
 
     c1, c2 = st.columns(2)
     with c1:
-        reliability_notes = result.get("reliability_notes", [])
-        if reliability_notes:
-            reliability_detail = " · ".join(reliability_notes) + "."
-        else:
-            reliability_detail = "Persona, besoins, réseaux et sources documentés."
+        decision_detail = (
+            "Les données nécessaires sont complètes."
+            if not result.get("decision_notes")
+            else " ".join(result["decision_notes"])
+        )
         st.markdown(
             f"""
-                <div class="cap-card">
-                    <div class="cap-card-label">Fiabilité des données sur la cible</div>
-                    <div class="cap-card-value">{result["reliability_label"]} · {result["reliability"]:.0f} %</div>
-                    <div class="cap-note" style="margin-top:.45rem">{escape(reliability_detail)}</div>
-                </div>
+            <div class="cap-card">
+                <div class="cap-card-label">Contrôle stratégique</div>
+                <div class="cap-card-value">{escape(strategic_status)}</div>
+                <div class="cap-card-purpose">{escape(decision_detail)}</div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
     with c2:
         st.markdown(
             f"""
-                <div class="cap-card">
-                    <div class="cap-card-label">Niveau de préparation</div>
-                    <div class="cap-card-value">{result["readiness_label"]} · {result["readiness"]:.0f} %</div>
-                    <div class="cap-card-purpose">
-                        {escape(readiness_advice)}
-                    </div>
+            <div class="cap-card">
+                <div class="cap-card-label">Contrôle des moyens</div>
+                <div class="cap-card-value">{escape(result["feasibility_label"])}</div>
+                <div class="cap-card-purpose">
+                    La plateforme reste cohérente sur le plan stratégique. Les moyens
+                    déterminent si son lancement peut commencer.
                 </div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
 
-    launch_actions = result.get("launch_actions", [])
-    if launch_actions:
+    st.subheader("Vérification de la faisabilité")
+    status_icon = {"vert": "🟢", "orange": "🟠", "rouge": "🔴"}
+    feasibility_table = [
+        {
+            "État": status_icon[row["status"]],
+            "Élément": row["criterion"],
+            "Constat": row["observation"],
+            "Action": row["action"],
+        }
+        for row in result.get("feasibility_rows", [])
+    ]
+    st.table(feasibility_table)
+
+    actions_to_show = (
+        result.get("decision_notes", [])
+        if strategic_status == "Recommandation impossible"
+        else result.get("launch_actions", [])
+    )
+    if actions_to_show:
         actions_html = "".join(
             f"""
             <div class="cap-action">
@@ -1026,16 +1245,29 @@ def result_page() -> None:
                 <div class="cap-action-text">{escape(action)}</div>
             </div>
             """
-            for index, action in enumerate(launch_actions, start=1)
+            for index, action in enumerate(actions_to_show, start=1)
         )
+        if strategic_status != "Recommandation impossible":
+            box_kicker = "Préparation opérationnelle"
+            box_title = "Avant de commencer"
+            box_intro = (
+                "Réalisez les actions orange ou rouges avant de programmer les "
+                "premières publications."
+            )
+        else:
+            box_kicker = "Fiabilisation du diagnostic"
+            box_title = "Avant de relancer l’analyse"
+            box_intro = (
+                "Complétez les informations suivantes avant de demander une "
+                "nouvelle recommandation."
+            )
         st.markdown(
             f"""
             <div class="cap-launch-box">
-                <div class="cap-launch-kicker">Préparation opérationnelle</div>
-                <div class="cap-launch-title">Avant de commencer</div>
+                <div class="cap-launch-kicker">{escape(box_kicker)}</div>
+                <div class="cap-launch-title">{escape(box_title)}</div>
                 <div class="cap-launch-intro">
-                    Le diagnostic a relevé les actions suivantes. Réalisez-les avant
-                    de programmer vos premières publications.
+                    {escape(box_intro)}
                 </div>
                 {actions_html}
             </div>
@@ -1056,26 +1288,11 @@ def result_page() -> None:
             width="stretch",
         )
     with guide_col:
-        guide_path = (
-            GUIDES_DIR / f"{result['winner'].lower()}.pdf"
-            if result["winner"]
-            else None
+        st.button(
+            "Guide de la plateforme non intégré",
+            disabled=True,
+            width="stretch",
         )
-        if guide_path and guide_path.exists():
-            st.download_button(
-                "Accéder au guide",
-                data=guide_path.read_bytes(),
-                file_name=f"guide_CAP_{result['winner'].lower()}.pdf",
-                mime="application/pdf",
-                type="primary",
-                width="stretch",
-            )
-        else:
-            st.button(
-                "Guide bientôt disponible",
-                disabled=True,
-                width="stretch",
-            )
 
     left, spacer, right = st.columns([1.2, 2, 1.4])
     with left:
