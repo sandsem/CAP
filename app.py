@@ -20,7 +20,6 @@ from config import (
     PLATFORM_STATUS_OPTIONS,
     PROFILE_OPTIONS,
     SOURCE_OPTIONS,
-    SUPPORT_STATUS_OPTIONS,
     TARGET_NETWORK_OPTIONS,
     TIME_OPTIONS,
 )
@@ -204,6 +203,29 @@ def inject_css() -> None:
             background: var(--cap-soft);
             margin: 1.65rem 0 0.7rem 0;
             padding: 1.35rem 1.45rem 0.45rem 1.45rem;
+        }
+
+        .cap-result-box {
+            border: 1px solid #D9DCDD;
+            border-radius: 20px;
+            background: var(--cap-soft);
+            margin: 1rem 0 1.1rem 0;
+            padding: 1.55rem 1.55rem 1.45rem 1.55rem;
+        }
+
+        .cap-result-title {
+            color: var(--cap-black);
+            font-size: clamp(1.75rem, 5vw, 2.8rem);
+            font-weight: 760;
+            letter-spacing: -0.04em;
+            line-height: 1.08;
+            margin-bottom: 0.65rem;
+        }
+
+        .cap-result-text {
+            color: #3F4246;
+            font-size: 1rem;
+            line-height: 1.55;
         }
 
         .cap-launch-kicker {
@@ -502,11 +524,12 @@ def select_many(
     key: str,
     help_text: str | None = None,
 ) -> list[str]:
+    valid_default = [value for value in default if value in options]
     selected = st.pills(
         label,
         options,
         selection_mode="multi",
-        default=default,
+        default=valid_default,
         key=key,
         help=help_text,
     )
@@ -627,23 +650,32 @@ def target_page() -> None:
         )
 
     if len(q2) > 1:
+        coherence_options = ["Oui", "À vérifier", "Non"]
+        saved_coherence = {
+            "Partiellement": "À vérifier",
+        }.get(
+            answers.get("q2_coherence", "Oui"),
+            answers.get("q2_coherence", "Oui"),
+        )
+        if saved_coherence not in coherence_options:
+            saved_coherence = "À vérifier"
         q2_coherence = st.radio(
-            "Ces profils partagent-ils le même besoin prioritaire et les mêmes canaux d’information ?",
-            ["Oui", "Partiellement", "Non"],
-            index=["Oui", "Partiellement", "Non"].index(
-                answers.get("q2_coherence", "Oui")
-            ),
+            "Les profils sélectionnés recherchent-ils la même information sur les mêmes réseaux ?",
+            coherence_options,
+            index=coherence_options.index(saved_coherence),
             horizontal=True,
             key="target_profile_coherence",
         )
-        if q2_coherence == "Partiellement":
+        if q2_coherence == "À vérifier":
             st.warning(
-                "Vérifiez que ces profils peuvent réellement être analysés ensemble."
+                "Confirmez ce point auprès de la cible. Si les besoins ou les "
+                "réseaux diffèrent, conservez seulement les profils comparables "
+                "et réalisez un diagnostic séparé pour les autres."
             )
         elif q2_coherence == "Non":
             st.warning(
-                "Réalisez un diagnostic distinct pour chaque persona afin d’éviter "
-                "une recommandation moyenne et peu exploitable."
+                "Conservez uniquement les profils qui recherchent cette information "
+                "sur les mêmes réseaux, puis réalisez un autre diagnostic pour les autres."
             )
     else:
         q2_coherence = "Oui"
@@ -668,12 +700,13 @@ def target_page() -> None:
         answers.get("q5", []),
         "target_sources",
     )
+    previous_quality = answers.get("q5_quality", EVIDENCE_QUALITY_OPTIONS[0])
+    if previous_quality == "Récentes et confirmées":
+        previous_quality = "Récentes et fiables"
     q5_quality = st.radio(
-        "Les informations relatives aux canaux utilisés par votre cible sont-elles récentes et concordantes ?",
+        "Les informations sur les réseaux utilisés par votre cible sont-elles récentes et fiables ?",
         EVIDENCE_QUALITY_OPTIONS,
-        index=EVIDENCE_QUALITY_OPTIONS.index(
-            answers.get("q5_quality", EVIDENCE_QUALITY_OPTIONS[0])
-        ),
+        index=EVIDENCE_QUALITY_OPTIONS.index(previous_quality),
         horizontal=True,
         key="target_evidence_quality",
     )
@@ -702,10 +735,6 @@ def target_page() -> None:
         if not q4_modes or "Non identifié" in q4_modes:
             errors.append(
                 "Précisez comment la cible accède habituellement à cette information."
-            )
-        if "Plusieurs usages" in q4_modes and len(q4_modes) > 1:
-            errors.append(
-                "« Plusieurs usages » ne peut pas être associé à un autre mode d’accès."
             )
         if "Aucune source" in q5 and len(q5) > 1:
             errors.append("« Aucune source » ne peut pas être associée à une autre source.")
@@ -889,39 +918,17 @@ def resources_page() -> None:
     preview = compare_platforms(answers)
     recommended = preview["winner"]
     tied_platforms = preview["tied_platforms"]
-    observation_platform = None
 
     if recommended:
-        st.info(
-            f"Les questions de production sont adaptées à {recommended}, "
-            "la plateforme issue de l’analyse stratégique."
-        )
-        platform_for_formats = recommended
+        format_platforms = [recommended]
     elif tied_platforms:
-        st.warning(
-            "Plusieurs plateformes restent équivalentes. Aucun écart artificiel "
-            "n’est créé pour les départager."
-        )
-        observation_options = ["À définir"] + tied_platforms
-        saved_observation = answers.get("q15", "À définir")
-        if saved_observation not in observation_options:
-            saved_observation = "À définir"
-        observation_choice = st.selectbox(
-            "Quelle plateforme souhaitez-vous retenir pour la période d’observation définie dans votre objectif ?",
-            observation_options,
-            index=observation_options.index(saved_observation),
-            key="resources_observation_platform",
-        )
-        observation_platform = (
-            observation_choice if observation_choice in tied_platforms else None
-        )
-        platform_for_formats = observation_platform
+        format_platforms = tied_platforms
     else:
         st.warning(
             "Les formats seront proposés lorsque les informations stratégiques "
             "permettront d’identifier une plateforme."
         )
-        platform_for_formats = None
+        format_platforms = []
 
     q8 = st.selectbox(
         "Quel temps mensuel pouvez-vous consacrer ?",
@@ -930,19 +937,24 @@ def resources_page() -> None:
         key="resources_time",
     )
 
-    if platform_for_formats:
-        compatible_formats = PLATFORM_FORMATS[platform_for_formats]
+    if format_platforms:
+        compatible_formats = []
+        for platform in format_platforms:
+            for content_format in PLATFORM_FORMATS[platform]:
+                if content_format not in compatible_formats:
+                    compatible_formats.append(content_format)
         saved_formats = [
             content_format
             for content_format in answers.get("q14", [])
             if content_format in compatible_formats
         ]
         q14 = select_many(
-            f"Quels formats propres à {platform_for_formats} pouvez-vous produire régulièrement ?",
+            "Quels formats pouvez-vous produire régulièrement ?",
             compatible_formats,
             saved_formats,
             "resources_formats",
-            "Sélectionnez uniquement les formats que le cabinet peut tenir dans la durée.",
+            "Les choix proposés correspondent à l’analyse réalisée. Sélectionnez "
+            "uniquement les formats que le cabinet peut tenir dans la durée.",
         )
     else:
         q14 = []
@@ -973,24 +985,43 @@ def resources_page() -> None:
         index=PILOT_OPTIONS.index(answers.get("q11", PILOT_OPTIONS[0])),
         key="resources_pilot",
     )
-    q12 = select_many(
-        "Comment compléter vos compétences ?",
-        APP_SUPPORT_OPTIONS,
-        answers.get("q12", []),
-        "resources_support",
-    )
-    q12_status = st.selectbox(
-        "Cette aide est-elle organisée ?",
-        SUPPORT_STATUS_OPTIONS,
-        index=SUPPORT_STATUS_OPTIONS.index(
-            answers.get("q12_status", SUPPORT_STATUS_OPTIONS[0])
-        ),
-        key="resources_support_status",
+    skills_to_strengthen = [
+        skill for skill, level in competencies.items() if level != "Autonome"
+    ]
+    legacy_support = {
+        "Appui interne": "Aide interne",
+        "Prestataire externe": "Prestataire",
+    }
+    saved_support = [
+        legacy_support.get(item, item)
+        for item in answers.get("q12", [])
+        if legacy_support.get(item, item) in APP_SUPPORT_OPTIONS
+    ]
+    if skills_to_strengthen:
+        q12 = select_many(
+            "Quelle solution avez-vous retenue pour les compétences à renforcer ?",
+            APP_SUPPORT_OPTIONS,
+            saved_support,
+            "resources_support",
+            "Sélectionnez la solution qui sera réellement utilisée avant le lancement.",
+        )
+    else:
+        q12 = []
+
+    legacy_budget = {
+        "Budget validé": "Oui",
+        "Montant à confirmer": "À vérifier",
+        "Dépense indispensable non finançable": "Non",
+        "Non évalué": "À vérifier",
+    }
+    saved_budget = legacy_budget.get(
+        answers.get("q13"),
+        answers.get("q13", BUDGET_OPTIONS[0]),
     )
     q13 = st.selectbox(
-        "Le budget couvre-t-il les besoins du scénario ?",
+        "Le cabinet peut-il financer les dépenses nécessaires au lancement ?",
         BUDGET_OPTIONS,
-        index=BUDGET_OPTIONS.index(answers.get("q13", BUDGET_OPTIONS[0])),
+        index=BUDGET_OPTIONS.index(saved_budget),
         key="resources_budget",
     )
 
@@ -999,16 +1030,20 @@ def resources_page() -> None:
         navigate("presence")
     if forward:
         errors = []
-        if platform_for_formats and not q14:
+        if format_platforms and not q14:
             errors.append(
-                f"Sélectionnez au moins un format que vous pouvez produire sur {platform_for_formats}."
+                "Sélectionnez au moins un format que vous pouvez produire régulièrement."
             )
         if "Aucun matériel" in q10 and len(q10) > 1:
             errors.append("« Aucun matériel » ne peut pas être associé à un équipement.")
-        if "Aucun appui" in q12 and len(q12) > 1:
-            errors.append("« Aucun appui » ne peut pas être associé à une autre solution.")
-        if "Non défini" in q12 and len(q12) > 1:
-            errors.append("« Non défini » ne peut pas être associé à une autre solution.")
+        if skills_to_strengthen and not q12:
+            errors.append(
+                "Indiquez comment les compétences à renforcer seront complétées."
+            )
+        if "Solution à trouver" in q12 and len(q12) > 1:
+            errors.append(
+                "« Solution à trouver » ne peut pas être associée à une solution déjà retenue."
+            )
         if errors:
             for error in errors:
                 st.error(error)
@@ -1021,9 +1056,8 @@ def resources_page() -> None:
                     "q10": q10,
                     "q11": q11,
                     "q12": q12,
-                    "q12_status": q12_status,
                     "q13": q13,
-                    "q15": observation_platform,
+                    "q15": None,
                 }
             )
             st.session_state.return_to_review = False
@@ -1091,16 +1125,16 @@ def review_page() -> None:
         "Vos moyens",
         [
             ("Temps :", answers.get("q8", "Non renseigné")),
-            (
-                "Plateforme d’observation :",
-                answers.get("q15") or "Sans objet",
-            ),
             ("Formats :", join_values(answers.get("q14", []))),
             ("Compétences :", skill_summary or "Non renseigné"),
             ("Matériel :", join_values(answers.get("q10", []))),
             ("Pilotage :", answers.get("q11", "Non renseigné")),
-            ("Appui :", join_values(answers.get("q12", []))),
-            ("Organisation de l’aide :", answers.get("q12_status", "Non renseignée")),
+            (
+                "Solution pour les compétences :",
+                join_values(answers.get("q12", []))
+                if answers.get("q12")
+                else "Sans objet",
+            ),
             ("Budget :", answers.get("q13", "Non renseigné")),
         ],
     )
@@ -1124,119 +1158,58 @@ def result_page() -> None:
         navigate("home")
 
     logo()
-    st.markdown('<div class="cap-eyebrow">Votre recommandation</div>', unsafe_allow_html=True)
+    st.markdown('<div class="cap-eyebrow">Résultat du diagnostic</div>', unsafe_allow_html=True)
     strategic_status = result["strategic_status"]
     winner = result["winner"]
     tied_platforms = result.get("tied_platforms", [])
     observation_platform = result.get("observation_platform")
-    platform_for_launch = result.get("platform_for_launch")
 
-    if strategic_status == "Recommandation impossible":
-        st.header("Recommandation impossible")
-        st.markdown(
-            f'<div class="cap-lead" style="margin-left:0">{escape(result.get("blocking_reason") or "Complétez les informations stratégiques.")}</div>',
-            unsafe_allow_html=True,
+    if strategic_status != "Choix validé":
+        result_title = strategic_status
+        result_text = (
+            "Aucune plateforme ne peut être recommandée à ce stade. "
+            "Corrigez les informations indiquées, puis relancez le diagnostic."
         )
+        actions_to_show = result.get("decision_notes", [])
+    elif winner and result["feasibility_label"] == "Projet prêt":
+        result_title = "Tout est prêt"
+        result_text = (
+            f"Vous pouvez vous lancer. {winner} est la plateforme la plus "
+            "cohérente avec votre stratégie et vos moyens."
+        )
+        actions_to_show = []
     elif winner:
-        st.markdown(
-            f"""
-            <div class="cap-recommendation">
-                <div class="cap-platform">{escape(winner)}</div>
-                <div class="cap-score">Plateforme recommandée</div>
-            </div>
-            <p class="cap-lead" style="margin-left:0">
-                Parmi les réseaux réellement utilisés par votre cible pour rechercher
-                cette information, {escape(winner)} présente la meilleure correspondance
-                avec l’objectif, le mode de découverte, le traitement éditorial et
-                l’effet recherchés.
-            </p>
-            """,
-            unsafe_allow_html=True,
+        result_title = result["feasibility_label"]
+        result_text = (
+            f"{winner} est la plateforme la plus cohérente avec votre stratégie. "
+            "Les moyens indiqués ci-dessous doivent être revus avant de commencer."
         )
-        if result.get("tie_break"):
-            st.caption(f"Critère de départage final : {result['tie_break']}.")
-    elif tied_platforms:
-        st.header("Plateformes équivalentes")
+        actions_to_show = result.get("launch_actions", [])
+    else:
         platforms_text = ", ".join(tied_platforms)
+        result_title = "Plateformes équivalentes"
         if observation_platform:
-            st.markdown(
-                f"""
-                <div class="cap-lead" style="margin-left:0">
-                    Aucun élément objectif ne permet de départager
-                    {escape(platforms_text)}. {escape(observation_platform)} est retenue
-                    pour la période d’observation définie dans l’objectif. Ce choix
-                    n’indique pas qu’elle est supérieure aux autres.
-                </div>
-                """,
-                unsafe_allow_html=True,
+            result_text = (
+                f"Aucun élément objectif ne permet de départager {platforms_text}. "
+                f"{observation_platform} est retenue pour la période d’observation."
             )
         else:
-            st.markdown(
-                f"""
-                <div class="cap-lead" style="margin-left:0">
-                    Aucun élément objectif ne permet de départager
-                    {escape(platforms_text)}. Retenez une seule plateforme pendant
-                    la période d’observation définie dans votre objectif.
-                </div>
-                """,
-                unsafe_allow_html=True,
+            result_text = (
+                f"Aucun élément objectif ne permet de départager {platforms_text}. "
+                "Retenez une seule plateforme pour la période d’observation définie."
             )
+        actions_to_show = result.get("launch_actions", [])
 
-    if result.get("selection_reasons"):
-        st.subheader("Pourquoi cette plateforme ?")
-        for reason in result["selection_reasons"]:
-            st.markdown(f"- {reason}")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        decision_detail = (
-            "Les données nécessaires sont complètes."
-            if not result.get("decision_notes")
-            else " ".join(result["decision_notes"])
-        )
-        st.markdown(
-            f"""
-            <div class="cap-card">
-                <div class="cap-card-label">Contrôle stratégique</div>
-                <div class="cap-card-value">{escape(strategic_status)}</div>
-                <div class="cap-card-purpose">{escape(decision_detail)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c2:
-        st.markdown(
-            f"""
-            <div class="cap-card">
-                <div class="cap-card-label">Contrôle des moyens</div>
-                <div class="cap-card-value">{escape(result["feasibility_label"])}</div>
-                <div class="cap-card-purpose">
-                    La plateforme reste cohérente sur le plan stratégique. Les moyens
-                    déterminent si son lancement peut commencer.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.subheader("Vérification de la faisabilité")
-    status_icon = {"vert": "🟢", "orange": "🟠", "rouge": "🔴"}
-    feasibility_table = [
-        {
-            "État": status_icon[row["status"]],
-            "Élément": row["criterion"],
-            "Constat": row["observation"],
-            "Action": row["action"],
-        }
-        for row in result.get("feasibility_rows", [])
-    ]
-    st.table(feasibility_table)
-
-    actions_to_show = (
-        result.get("decision_notes", [])
-        if strategic_status == "Recommandation impossible"
-        else result.get("launch_actions", [])
+    st.markdown(
+        f"""
+        <div class="cap-result-box">
+            <div class="cap-result-title">{escape(result_title)}</div>
+            <div class="cap-result-text">{escape(result_text)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
     if actions_to_show:
         actions_html = "".join(
             f"""
@@ -1247,20 +1220,13 @@ def result_page() -> None:
             """
             for index, action in enumerate(actions_to_show, start=1)
         )
-        if strategic_status != "Recommandation impossible":
-            box_kicker = "Préparation opérationnelle"
-            box_title = "Avant de commencer"
-            box_intro = (
-                "Réalisez les actions orange ou rouges avant de programmer les "
-                "premières publications."
-            )
-        else:
-            box_kicker = "Fiabilisation du diagnostic"
-            box_title = "Avant de relancer l’analyse"
-            box_intro = (
-                "Complétez les informations suivantes avant de demander une "
-                "nouvelle recommandation."
-            )
+        box_kicker = "Actions nécessaires"
+        box_title = "À revoir"
+        box_intro = (
+            "Corrigez ces éléments avant de relancer le diagnostic."
+            if strategic_status != "Choix validé"
+            else "Réalisez ces actions avant de commencer."
+        )
         st.markdown(
             f"""
             <div class="cap-launch-box">
@@ -1289,7 +1255,11 @@ def result_page() -> None:
         )
     with guide_col:
         st.button(
-            "Guide de la plateforme non intégré",
+            (
+                "Guide de la plateforme non intégré"
+                if winner
+                else "Guide disponible après recommandation"
+            ),
             disabled=True,
             width="stretch",
         )

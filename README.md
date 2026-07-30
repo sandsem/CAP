@@ -42,12 +42,18 @@ Les données stratégiques conduisent à l’un des résultats suivants :
 - `Projet à revoir` ;
 - `Recommandation impossible`.
 
+Une plateforme n’est affichée que lorsque le contrôle stratégique aboutit à
+`Choix validé`. Un projet à revoir doit d’abord être corrigé, puis analysé à
+nouveau.
+
 Les moyens du cabinet font l’objet d’un contrôle séparé. Chaque élément reçoit
 un état vert, orange ou rouge. Une seule alerte rouge reporte le lancement. Une
 alerte orange impose l’action indiquée. Toutes les lignes doivent être vertes
 pour afficher `Projet prêt`.
 
 Les moyens ne modifient jamais la cohérence stratégique de la plateforme.
+Le contrôle porte sur le temps, les formats et compétences, le matériel, le
+responsable et le budget. Il n’utilise aucun pourcentage de faisabilité.
 
 ## Guides de plateforme
 
@@ -66,3 +72,12 @@ streamlit run app.py
 
 Les réponses restent dans la session Streamlit et ne sont pas enregistrées par
 l’application.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+La suite comprend 240 tests, dont une matrice de 216 scénarios croisant les
+données stratégiques et les moyens du cabinet.

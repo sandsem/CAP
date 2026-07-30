@@ -18,7 +18,7 @@ def base_answers():
         "q4": ["Instagram", "TikTok"],
         "q4_modes": ["Découverte visuelle en suivant des comptes"],
         "q5": ["Expérience terrain", "Étude sectorielle"],
-        "q5_quality": "Récentes et concordantes",
+        "q5_quality": "Récentes et fiables",
         "q6": "Acquisition",
         "q6_treatment": "Montrer et vulgariser visuellement",
         "q6_effect": "Valoriser l’image du cabinet et entretenir la relation",
@@ -45,9 +45,8 @@ def base_answers():
             "Micro",
         ],
         "q11": "Expert-comptable",
-        "q12": ["Aucun appui"],
-        "q12_status": "Aucune aide nécessaire",
-        "q13": "Budget validé",
+        "q12": [],
+        "q13": "Aucune dépense nécessaire",
         "q15": None,
     }
 
@@ -107,7 +106,10 @@ class StrategicTests(unittest.TestCase):
 
     def _tie_answers(self):
         answers = base_answers()
-        answers["q4_modes"] = ["Plusieurs usages"]
+        answers["q4_modes"] = [
+            "Découverte visuelle en suivant des comptes",
+            "Recommandation de contenus selon les centres d’intérêt",
+        ]
         answers["q6_treatment"] = "Informer et échanger avec une communauté"
         answers["q6_effect"] = "Créer une relation de proximité"
         answers["q7"]["Instagram"] = "Compte inactif"
@@ -154,18 +156,28 @@ class StrategicTests(unittest.TestCase):
         self.assertEqual(result["strategic_status"], "Recommandation impossible")
         self.assertIsNone(result["winner"])
 
-    def test_partial_information_requires_review_but_keeps_orientation(self):
+    def test_partial_information_requires_review_without_recommendation(self):
         answers = base_answers()
         answers["q5"] = ["Expérience terrain"]
         result = evaluate(answers)
         self.assertEqual(result["strategic_status"], "Projet à revoir")
-        self.assertEqual(result["winner"], "Instagram")
+        self.assertIsNone(result["winner"])
+        self.assertIsNone(result["platform_for_launch"])
 
     def test_old_information_blocks_recommendation(self):
         answers = base_answers()
         answers["q5_quality"] = "Anciennes ou non vérifiées"
         control = strategic_control(answers)
         self.assertEqual(control["status"], "Recommandation impossible")
+
+    def test_profiles_to_verify_require_review_with_action(self):
+        answers = base_answers()
+        answers["q2_coherence"] = "À vérifier"
+        control = strategic_control(answers)
+        self.assertEqual(control["status"], "Projet à revoir")
+        self.assertTrue(
+            any("même information" in note for note in control["review"])
+        )
 
 
 class FeasibilityTests(unittest.TestCase):
@@ -196,13 +208,44 @@ class FeasibilityTests(unittest.TestCase):
     def test_one_red_postpones_launch_without_changing_platform(self):
         answers = base_answers()
         answers["q9"]["Montage vidéo"] = "À acquérir"
-        answers["q12_status"] = "Aide indispensable sans solution"
+        answers["q12"] = ["Solution à trouver"]
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
         self.assertEqual(result["feasibility_label"], "Lancement à reporter")
         self.assertTrue(
             any(row["status"] == "rouge" for row in result["feasibility_rows"])
         )
+        skill_row = next(
+            row
+            for row in result["feasibility_rows"]
+            if row["criterion"] == "Formats et compétences"
+        )
+        self.assertIn("Montage vidéo", skill_row["observation"])
+
+    def test_concrete_training_solution_turns_missing_skill_orange(self):
+        answers = base_answers()
+        answers["q9"]["Montage vidéo"] = "À acquérir"
+        answers["q12"] = ["Formation"]
+        result = evaluate(answers)
+        skill_row = next(
+            row
+            for row in result["feasibility_rows"]
+            if row["criterion"] == "Formats et compétences"
+        )
+        self.assertEqual(skill_row["status"], "orange")
+        self.assertEqual(result["feasibility_label"], "Lancement à préparer")
+
+    def test_unfunded_essential_expense_postpones_launch(self):
+        answers = base_answers()
+        answers["q13"] = "Non"
+        result = evaluate(answers)
+        budget_row = next(
+            row
+            for row in result["feasibility_rows"]
+            if row["criterion"] == "Budget"
+        )
+        self.assertEqual(budget_row["status"], "rouge")
+        self.assertEqual(result["feasibility_label"], "Lancement à reporter")
 
 
 if __name__ == "__main__":

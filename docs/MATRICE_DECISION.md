@@ -41,10 +41,17 @@ Une donnée essentielle manquante conduit à `Recommandation impossible`.
 Une donnée partielle ou insuffisamment recoupée conduit à `Projet à revoir`.
 Lorsque les données nécessaires sont complètes, le résultat est `Choix validé`.
 
+Seul le statut `Choix validé` autorise l’affichage d’une plateforme. Lorsque le
+projet est à revoir ou que la recommandation est impossible, CAP présente les
+informations à corriger puis invite l’utilisateur à relancer le diagnostic.
+
 ## 5. Contrôle des moyens
 
-Les formats proposés à l’étape 4 dépendent de la plateforme issue de l’analyse.
-Seules les compétences nécessaires aux formats retenus sont vérifiées.
+Les formats proposés à l’étape 4 sont filtrés en arrière-plan selon le résultat
+de l’analyse, mais le nom de la plateforme n’est pas affiché avant la
+recommandation finale. En cas d’égalité, les formats des plateformes encore
+comparées sont regroupés. Seules les compétences nécessaires aux formats
+retenus sont vérifiées.
 
 | Couleur | Conséquence |
 |---|---|
@@ -52,6 +59,19 @@ Seules les compétences nécessaires aux formats retenus sont vérifiées.
 | Orange | Action à réaliser avant le lancement |
 | Rouge | Lancement à reporter |
 
-La couleur la plus défavorable détermine la décision finale. Les critères
-contrôlés sont le temps, les formats et compétences, le matériel, le
-responsable, l’aide prévue et le budget.
+La couleur la plus défavorable détermine la décision finale. Aucun pourcentage
+n’est calculé : une seule situation rouge suffit à reporter le lancement. Les
+cinq critères contrôlés sont le temps, les formats et compétences, le matériel,
+le responsable et le budget.
+
+La solution retenue pour acquérir ou renforcer une compétence est demandée
+uniquement lorsque le cabinet n’est pas autonome. Elle est vérifiée dans la
+ligne `Formats et compétences` et ne constitue pas un second critère.
+
+La question budgétaire vérifie si le cabinet peut financer les dépenses
+nécessaires au lancement. Elle ne modifie jamais la plateforme choisie.
+
+L’écran final reste volontairement court. Les motifs de la recommandation, le
+critère de départage et les constats détaillés de faisabilité figurent dans la
+synthèse PDF. Dans cette synthèse, chaque ligne est colorée selon son état et
+présente l’élément, le constat et l’action à réaliser.

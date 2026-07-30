@@ -35,7 +35,7 @@ SOURCE_OPTIONS = [
 ]
 
 EVIDENCE_QUALITY_OPTIONS = [
-    "Récentes et concordantes",
+    "Récentes et fiables",
     "Partiellement vérifiées",
     "Anciennes ou non vérifiées",
 ]
@@ -95,7 +95,6 @@ DISCOVERY_MODE_OPTIONS = [
     "Échanges dans une communauté ou un groupe local",
     "Découverte visuelle en suivant des comptes",
     "Recommandation de contenus selon les centres d’intérêt",
-    "Plusieurs usages",
     "Non identifié",
 ]
 
@@ -159,27 +158,17 @@ PILOT_OPTIONS = [
 APP_SUPPORT_OPTIONS = [
     "Autoformation",
     "Formation",
-    "Appui interne",
-    "Prestataire externe",
+    "Aide interne",
+    "Prestataire",
     "Autre solution",
-    "Aucun appui",
-    "Non défini",
-]
-
-SUPPORT_STATUS_OPTIONS = [
-    "Aucune aide nécessaire",
-    "Aide déjà organisée",
-    "Aide envisagée mais non organisée",
-    "Aide indispensable sans solution",
-    "Non évalué",
+    "Solution à trouver",
 ]
 
 BUDGET_OPTIONS = [
     "Aucune dépense nécessaire",
-    "Budget validé",
-    "Montant à confirmer",
-    "Dépense indispensable non finançable",
-    "Non évalué",
+    "Oui",
+    "À vérifier",
+    "Non",
 ]
 
 # Cette grille décrit les différences de fonctionnement des plateformes.

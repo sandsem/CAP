@@ -43,12 +43,13 @@ def strategic_control(answers: dict) -> dict:
 
     if answers.get("q2_coherence") == "Non":
         blocking.append(
-            "Réaliser un diagnostic distinct pour les personas qui ne partagent "
-            "pas le même besoin et les mêmes canaux d’information."
+            "Conserver uniquement les profils qui recherchent la même information "
+            "sur les mêmes réseaux, puis réaliser un diagnostic séparé pour les autres."
         )
-    elif answers.get("q2_coherence") == "Partiellement":
+    elif answers.get("q2_coherence") in {"À vérifier", "Partiellement"}:
         review.append(
-            "Vérifier que les profils peuvent réellement être analysés ensemble."
+            "Confirmer que les profils sélectionnés recherchent la même information "
+            "sur les mêmes réseaux."
         )
 
     eligible = [
@@ -60,12 +61,18 @@ def strategic_control(answers: dict) -> dict:
             "information."
         )
 
+    known_discovery_modes = set().union(
+        *(
+            reference["discovery_modes"]
+            for reference in PLATFORM_REFERENCE.values()
+        )
+    )
     discovery_modes = [
         mode
         for mode in answers.get("q4_modes", [])
-        if mode not in {"Non identifié", "Plusieurs usages"}
+        if mode in known_discovery_modes
     ]
-    if not discovery_modes and "Plusieurs usages" not in answers.get("q4_modes", []):
+    if not discovery_modes:
         blocking.append(
             "Préciser comment la cible accède habituellement à cette information."
         )
@@ -124,14 +131,6 @@ def _platform_correspondences(answers: dict, platform: str) -> list[str]:
         correspondences.append("objectif")
 
     selected_modes = set(answers.get("q4_modes", []))
-    if "Plusieurs usages" in selected_modes:
-        selected_modes = set().union(
-            *(
-                PLATFORM_REFERENCE[name]["discovery_modes"]
-                for name in answers.get("q4", [])
-                if name in PLATFORM_REFERENCE
-            )
-        )
     if selected_modes.intersection(reference["discovery_modes"]):
         correspondences.append("mode de découverte")
     if answers.get("q6_treatment") == reference["editorial_treatment"]:
@@ -151,7 +150,7 @@ def compare_platforms(answers: dict) -> dict:
         for platform in eligible
     }
 
-    if control["status"] == "Recommandation impossible" or not eligible:
+    if control["status"] != "Choix validé" or not eligible:
         return {
             "winner": None,
             "tied_platforms": [],
@@ -247,13 +246,22 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
                 "Reporter le lancement ou dégager une disponibilité réelle.",
             )
         )
-    elif time in {"Non évalué", "Moins de 2 h"}:
+    elif time == "Non évalué":
         rows.append(
             _criterion(
                 "Temps disponible",
                 "orange",
-                "Le temps est insuffisamment établi pour confirmer le rythme.",
-                "Mesurer la charge et adapter le rythme de publication.",
+                "Le temps disponible n’a pas été évalué.",
+                "Évaluer le temps mensuel disponible avant de commencer.",
+            )
+        )
+    elif time == "Moins de 2 h":
+        rows.append(
+            _criterion(
+                "Temps disponible",
+                "orange",
+                "Moins de deux heures par mois risque de ne pas suffire.",
+                "Réduire le rythme de publication ou dégager davantage de temps.",
             )
         )
     else:
@@ -261,52 +269,74 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
             _criterion(
                 "Temps disponible",
                 "vert",
-                "Une disponibilité mensuelle a été définie.",
-                "Inscrire ce temps dans le plan de charge.",
+                "Le temps mensuel consacré au projet est défini.",
+                "Aucune action nécessaire.",
             )
         )
 
-    if platform and not formats:
+    if not formats:
         rows.append(
             _criterion(
                 "Formats et compétences",
                 "orange",
-                f"Aucun format propre à {platform} n’a été retenu.",
+                "Aucun format régulier n’a été retenu.",
                 "Choisir au moins un format régulier avant le lancement.",
             )
         )
     else:
-        missing = {
+        missing = sorted(
             skill
             for skill in required_skills
             if skills.get(skill, "À acquérir") == "À acquérir"
-        }
-        partial = {
+        )
+        partial = sorted(
             skill
             for skill in required_skills
             if skills.get(skill) == "Notions"
+        )
+        support = set(answers.get("q12", []))
+        legacy_support = {
+            "Appui interne": "Aide interne",
+            "Prestataire externe": "Prestataire",
         }
-        support_status = answers.get("q12_status", "Non évalué")
-        if missing and support_status in {
-            "Aide indispensable sans solution",
-            "Aucune aide nécessaire",
-            "Non évalué",
-        }:
+        support = {legacy_support.get(item, item) for item in support}
+        concrete_support = bool(
+            support.intersection(
+                {
+                    "Autoformation",
+                    "Formation",
+                    "Aide interne",
+                    "Prestataire",
+                    "Autre solution",
+                }
+            )
+        )
+        if missing and not concrete_support:
             rows.append(
                 _criterion(
                     "Formats et compétences",
                     "rouge",
-                    "Une compétence indispensable manque sans solution organisée.",
-                    "Prévoir une formation, un appui ou un prestataire avant de commencer.",
+                    f"Compétences à acquérir : {', '.join(missing)}.",
+                    "Choisir une autoformation, une formation, une aide interne "
+                    "ou un prestataire.",
                 )
             )
-        elif missing or partial:
+        elif missing:
             rows.append(
                 _criterion(
                     "Formats et compétences",
                     "orange",
-                    "Certaines compétences doivent encore être consolidées.",
-                    "Produire un contenu d’essai et organiser l’aide nécessaire.",
+                    f"Compétences à acquérir : {', '.join(missing)}.",
+                    "Mettre en œuvre la solution retenue avant de commencer.",
+                )
+            )
+        elif partial:
+            rows.append(
+                _criterion(
+                    "Formats et compétences",
+                    "orange",
+                    f"Compétences à renforcer : {', '.join(partial)}.",
+                    "Mettre en œuvre la solution retenue et réaliser un contenu d’essai.",
                 )
             )
         else:
@@ -314,8 +344,8 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
                 _criterion(
                     "Formats et compétences",
                     "vert",
-                    "Les compétences utiles aux formats choisis sont disponibles.",
-                    "Formaliser la méthode de production retenue.",
+                    "Les compétences nécessaires sont maîtrisées.",
+                    "Aucune action nécessaire.",
                 )
             )
 
@@ -351,7 +381,7 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
                 "Matériel",
                 "vert",
                 "Le matériel nécessaire est disponible.",
-                "Préparer un espace de stockage et les accès utiles.",
+                "Aucune action nécessaire.",
             )
         )
 
@@ -370,68 +400,42 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
                 "Responsable",
                 "vert",
                 "Le pilotage du projet est attribué.",
-                "Préciser les tâches de préparation, validation, publication et réponse.",
+                "Aucune action nécessaire.",
             )
         )
 
-    support_status = answers.get("q12_status", "Non évalué")
-    if support_status == "Aide indispensable sans solution":
+    legacy_budget = {
+        "Budget validé": "Oui",
+        "Montant à confirmer": "À vérifier",
+        "Dépense indispensable non finançable": "Non",
+        "Non évalué": "À vérifier",
+    }
+    budget = legacy_budget.get(answers.get("q13"), answers.get("q13", "À vérifier"))
+    if budget == "Non":
         rows.append(
             _criterion(
-                "Aide prévue",
-                "rouge",
-                "Une aide est indispensable, mais aucune solution n’a été recherchée.",
-                "Trouver un accompagnement avant de commencer.",
-            )
-        )
-    elif support_status in {
-        "Aide envisagée mais non organisée",
-        "Non évalué",
-    }:
-        rows.append(
-            _criterion(
-                "Aide prévue",
-                "orange",
-                "L’aide nécessaire n’est pas encore organisée.",
-                "Choisir la formation ou la personne qui accompagnera le cabinet.",
-            )
-        )
-    else:
-        rows.append(
-            _criterion(
-                "Aide prévue",
-                "vert",
-                "Le cabinet est autonome ou dispose déjà de l’aide nécessaire.",
-                "Conserver les coordonnées et modalités de cet appui.",
-            )
-        )
-
-    budget = answers.get("q13", "Non évalué")
-    if budget == "Dépense indispensable non finançable":
-        rows.append(
-            _criterion(
-                "Budget nécessaire",
+                "Budget",
                 "rouge",
                 "Une dépense indispensable ne peut pas être financée.",
                 "Choisir une solution moins coûteuse ou reporter le lancement.",
             )
         )
-    elif budget in {"Montant à confirmer", "Non évalué"}:
+    elif budget == "À vérifier":
         rows.append(
             _criterion(
-                "Budget nécessaire",
+                "Budget",
                 "orange",
-                "Une dépense est envisagée, mais son montant reste à confirmer.",
-                "Chiffrer et valider le coût avant le lancement.",
+                "Le coût nécessaire au lancement reste à vérifier.",
+                "Chiffrer les dépenses avant de commencer.",
             )
         )
     else:
         rows.append(
             _criterion(
-                "Budget nécessaire",
+                "Budget",
                 "vert",
-                "Aucune dépense n’est nécessaire ou le budget couvre les besoins.",
-                "Suivre les dépenses réellement engagées.",
+                "Aucune dépense n’est nécessaire ou le cabinet peut la financer.",
+                "Aucune action nécessaire.",
             )
         )
 
@@ -477,16 +481,16 @@ def build_selection_reasons(platform: str | None, comparison: dict) -> list[str]
 def evaluate(answers: dict) -> dict:
     control = strategic_control(answers)
     selection = compare_platforms(answers)
-    winner = selection["winner"]
+    strategic_choice_is_valid = control["status"] == "Choix validé"
+    winner = selection["winner"] if strategic_choice_is_valid else None
     observation_platform = answers.get("q15")
-    if observation_platform not in selection["tied_platforms"]:
+    if (
+        not strategic_choice_is_valid
+        or observation_platform not in selection["tied_platforms"]
+    ):
         observation_platform = None
     platform_for_launch = winner or observation_platform
     feasibility = evaluate_feasibility(answers, platform_for_launch)
-
-    if control["status"] == "Recommandation impossible":
-        winner = None
-        platform_for_launch = None
 
     return {
         "strategic_status": control["status"],

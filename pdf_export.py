@@ -10,6 +10,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -124,6 +125,48 @@ def _table(rows: list, widths: list) -> Table:
     return table
 
 
+def _feasibility_table(rows: list[dict], styles: dict) -> Table:
+    data = [
+        [
+            Paragraph("Élément", styles["label"]),
+            Paragraph("Constat", styles["label"]),
+            Paragraph("Action", styles["label"]),
+        ]
+    ]
+    backgrounds = {
+        "vert": colors.HexColor("#E8F5E9"),
+        "orange": colors.HexColor("#FFF3E0"),
+        "rouge": colors.HexColor("#FDECEC"),
+    }
+    commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F2F3F3")),
+        ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+        ("FONTNAME", (0, 1), (-1, -1), FONT_REGULAR),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#222222")),
+        ("BOX", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9DCDD")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#D9DCDD")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]
+    for index, row in enumerate(rows, start=1):
+        data.append(
+            [
+                Paragraph(escape(row["criterion"]), styles["value"]),
+                Paragraph(escape(row["observation"]), styles["value"]),
+                Paragraph(escape(row["action"]), styles["value"]),
+            ]
+        )
+        commands.append(
+            ("BACKGROUND", (0, index), (-1, index), backgrounds[row["status"]])
+        )
+
+    table = Table(data, colWidths=[38 * mm, 63 * mm, 63 * mm], repeatRows=1)
+    table.setStyle(TableStyle(commands))
+    return table
+
+
 def build_summary_pdf(answers: dict, result: dict) -> bytes:
     buffer = BytesIO()
     document = _document(buffer, "Synthèse CAP")
@@ -132,18 +175,16 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     winner = result.get("winner")
     observation = result.get("observation_platform")
     tied = result.get("tied_platforms", [])
-    if winner:
+    strategic_choice_is_valid = result["strategic_status"] == "Choix validé"
+    if strategic_choice_is_valid and winner:
         recommendation = winner
         recommendation_label = "Plateforme recommandée"
-    elif observation:
-        recommendation = observation
-        recommendation_label = "Plateforme retenue pour la période d’observation"
-    elif tied:
+    elif strategic_choice_is_valid and tied:
         recommendation = "Plateformes équivalentes"
         recommendation_label = ", ".join(tied)
     else:
-        recommendation = "Recommandation impossible"
-        recommendation_label = "Informations stratégiques à compléter"
+        recommendation = result["strategic_status"]
+        recommendation_label = "Aucune plateforme recommandée"
 
     story = [
         Paragraph("CAP", styles["title"]),
@@ -206,52 +247,46 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     ]
     story.append(_table(decision_rows, [46 * mm, 104 * mm]))
 
-    story.append(Paragraph("Décision", styles["heading"]))
+    story.append(Paragraph("Résultat du diagnostic", styles["heading"]))
     status_rows = [
         [Paragraph("Contrôle", styles["label"]), Paragraph("Résultat", styles["label"])],
         [
             Paragraph("Données stratégiques", styles["label"]),
             Paragraph(escape(result["strategic_status"]), styles["value"]),
         ],
-        [
-            Paragraph("Moyens du cabinet", styles["label"]),
-            Paragraph(escape(result["feasibility_label"]), styles["value"]),
-        ],
     ]
+    if strategic_choice_is_valid:
+        status_rows.append(
+            [
+                Paragraph("Moyens du cabinet", styles["label"]),
+                Paragraph(escape(result["feasibility_label"]), styles["value"]),
+            ]
+        )
+    if strategic_choice_is_valid and winner and result.get("tie_break"):
+        status_rows.append(
+            [
+                Paragraph("Critère de départage", styles["label"]),
+                Paragraph(escape(result["tie_break"]), styles["value"]),
+            ]
+        )
     story.append(_table(status_rows, [60 * mm, 90 * mm]))
 
-    if result.get("selection_reasons"):
+    if strategic_choice_is_valid and result.get("selection_reasons"):
         story.append(Paragraph("Motifs de la recommandation", styles["heading"]))
         for reason in result["selection_reasons"]:
             story.append(Paragraph(f"• {escape(reason)}", styles["body"]))
             story.append(Spacer(1, 2))
 
-    story.append(Paragraph("Contrôle de la faisabilité", styles["heading"]))
-    feasibility_rows = [
-        [
-            Paragraph("État", styles["label"]),
-            Paragraph("Élément", styles["label"]),
-            Paragraph("Action", styles["label"]),
-        ]
-    ]
-    labels = {"vert": "Vert", "orange": "Orange", "rouge": "Rouge"}
-    for row in result.get("feasibility_rows", []):
-        feasibility_rows.append(
-            [
-                Paragraph(labels[row["status"]], styles["value"]),
-                Paragraph(escape(row["criterion"]), styles["value"]),
-                Paragraph(escape(row["action"]), styles["value"]),
-            ]
+    if strategic_choice_is_valid:
+        story.append(PageBreak())
+        story.append(Paragraph("Vérification de la faisabilité", styles["heading"]))
+        story.append(
+            _feasibility_table(result.get("feasibility_rows", []), styles)
         )
-    story.append(_table(feasibility_rows, [22 * mm, 38 * mm, 90 * mm]))
-
-    actions = (
-        result.get("decision_notes", [])
-        if result["strategic_status"] == "Recommandation impossible"
-        else result.get("launch_actions", [])
-    )
-    if actions:
-        story.append(Paragraph("Actions à réaliser", styles["heading"]))
+    else:
+        actions = result.get("decision_notes", [])
+        if actions:
+            story.append(Paragraph("À revoir", styles["heading"]))
         for index, action in enumerate(actions, start=1):
             story.append(Paragraph(f"{index}. {escape(action)}", styles["body"]))
             story.append(Spacer(1, 3))
@@ -268,4 +303,3 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     )
     document.build(story)
     return buffer.getvalue()
-

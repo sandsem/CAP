@@ -13,7 +13,7 @@ class AppSmokeTests(unittest.TestCase):
         "q4": ["Instagram", "TikTok"],
         "q4_modes": ["Découverte visuelle en suivant des comptes"],
         "q5": ["Expérience terrain", "Étude sectorielle"],
-        "q5_quality": "Récentes et concordantes",
+        "q5_quality": "Récentes et fiables",
         "q6": "Acquisition",
         "q6_treatment": "Montrer et vulgariser visuellement",
         "q6_effect": "Valoriser l’image du cabinet et entretenir la relation",
@@ -39,9 +39,8 @@ class AppSmokeTests(unittest.TestCase):
             "Connexion stable",
         ],
         "q11": "Expert-comptable",
-        "q12": ["Aucun appui"],
-        "q12_status": "Aucune aide nécessaire",
-        "q13": "Budget validé",
+        "q12": [],
+        "q13": "Aucune dépense nécessaire",
         "q15": None,
     }
 
@@ -65,6 +64,38 @@ class AppSmokeTests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(app.session_state["screen"], "result")
         self.assertEqual(app.session_state["result"]["winner"], "Instagram")
+
+    def test_resources_page_does_not_reveal_recommendation(self):
+        app = AppTest.from_file("app.py", default_timeout=10)
+        app.session_state["screen"] = "resources"
+        app.session_state["answers"] = self.ANSWERS
+        app.session_state["result"] = None
+        app.session_state["return_to_review"] = False
+        app.run()
+
+        self.assertEqual(len(app.exception), 0)
+        messages = [element.value for element in app.info]
+        self.assertFalse(any("Instagram" in message for message in messages))
+        self.assertFalse(any("TikTok" in message for message in messages))
+
+    def test_review_status_does_not_display_a_platform_recommendation(self):
+        answers = dict(self.ANSWERS)
+        answers["q5"] = ["Expérience terrain"]
+        app = AppTest.from_file("app.py", default_timeout=10)
+        app.session_state["screen"] = "result"
+        app.session_state["answers"] = answers
+        from scoring import evaluate
+
+        app.session_state["result"] = evaluate(answers)
+        app.session_state["return_to_review"] = False
+        app.run()
+
+        self.assertEqual(len(app.exception), 0)
+        self.assertIsNone(app.session_state["result"]["winner"])
+        rendered = " ".join(
+            element.value for element in app.markdown if hasattr(element, "value")
+        )
+        self.assertIn("Aucune plateforme ne peut être recommandée", rendered)
 
 
 if __name__ == "__main__":
