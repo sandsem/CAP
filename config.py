@@ -98,26 +98,8 @@ DISCOVERY_MODE_OPTIONS = [
     "Non identifié",
 ]
 
-EDITORIAL_TREATMENT_OPTIONS = [
-    "Informer et échanger avec une communauté",
-    "Montrer et vulgariser visuellement",
-    "Capter rapidement avec un contenu direct et incarné",
-    "Expliquer et approfondir un sujet",
-    "Non défini",
-]
-
-AUDIENCE_EFFECT_OPTIONS = [
-    "Créer une relation de proximité",
-    "Valoriser l’image du cabinet et entretenir la relation",
-    "Faire découvrir le cabinet",
-    "Démontrer l’expertise et répondre à un besoin identifié",
-    "Non défini",
-]
-
-PLATFORM_STATUS_OPTIONS = [
-    "Aucun compte",
-    "Compte inactif",
-    "Compte actif",
+PLATFORM_RESULT_OPTIONS = [
+    "Aucun résultat identifié",
     "Audience cible engagée",
     "Contacts obtenus",
 ]
@@ -178,61 +160,41 @@ BUDGET_OPTIONS = [
 PLATFORM_REFERENCE = {
     "Facebook": {
         "discovery_modes": {"Échanges dans une communauté ou un groupe local"},
-        "editorial_treatment": "Informer et échanger avec une communauté",
-        "audience_effect": "Créer une relation de proximité",
         "objectives": {
             "Visibilité / notoriété",
             "Acquisition",
             "Fidélisation",
         },
-        "discovery_label": "communautés, groupes et proximité territoriale",
-        "treatment_label": "information et échange",
-        "effect_label": "relation de proximité",
     },
     "Instagram": {
         "discovery_modes": {"Découverte visuelle en suivant des comptes"},
-        "editorial_treatment": "Montrer et vulgariser visuellement",
-        "audience_effect": "Valoriser l’image du cabinet et entretenir la relation",
         "objectives": {
             "Visibilité / notoriété",
             "Acquisition",
             "Recrutement",
             "Fidélisation",
         },
-        "discovery_label": "découverte visuelle et suivi des comptes",
-        "treatment_label": "mise en valeur et vulgarisation",
-        "effect_label": "valorisation de l’image et entretien de la relation",
     },
     "TikTok": {
         "discovery_modes": {
             "Recommandation de contenus selon les centres d’intérêt"
         },
-        "editorial_treatment": "Capter rapidement avec un contenu direct et incarné",
-        "audience_effect": "Faire découvrir le cabinet",
         "objectives": {
             "Visibilité / notoriété",
             "Acquisition",
             "Recrutement",
         },
-        "discovery_label": "recommandation selon les centres d’intérêt",
-        "treatment_label": "contenu direct et incarné",
-        "effect_label": "découverte du cabinet",
     },
     "YouTube": {
         "discovery_modes": {
             "Recherche volontaire d’une réponse",
             "Recommandation de contenus selon les centres d’intérêt",
         },
-        "editorial_treatment": "Expliquer et approfondir un sujet",
-        "audience_effect": "Démontrer l’expertise et répondre à un besoin identifié",
         "objectives": {
             "Visibilité / notoriété",
             "Acquisition",
             "Expertise / conseil",
         },
-        "discovery_label": "recherche volontaire et recommandation",
-        "treatment_label": "explication structurée",
-        "effect_label": "démonstration de l’expertise",
     },
 }
 

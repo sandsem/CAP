@@ -150,7 +150,12 @@ def _feasibility_table(rows: list[dict], styles: dict) -> Table:
         ("TOPPADDING", (0, 0), (-1, -1), 7),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]
-    for index, row in enumerate(rows, start=1):
+    status_order = {"vert": 0, "orange": 1, "rouge": 2}
+    ordered_rows = sorted(
+        rows,
+        key=lambda row: status_order.get(row["status"], 3),
+    )
+    for index, row in enumerate(ordered_rows, start=1):
         data.append(
             [
                 Paragraph(escape(row["criterion"]), styles["value"]),
@@ -176,12 +181,20 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     observation = result.get("observation_platform")
     tied = result.get("tied_platforms", [])
     strategic_choice_is_valid = result["strategic_status"] == "Choix validé"
+    selection_outcome = result.get("selection_outcome")
+    selection_is_available = selection_outcome in {"recommended", "tie"}
     if strategic_choice_is_valid and winner:
         recommendation = winner
         recommendation_label = "Plateforme recommandée"
     elif strategic_choice_is_valid and tied:
         recommendation = "Plateformes équivalentes"
         recommendation_label = ", ".join(tied)
+    elif strategic_choice_is_valid and selection_outcome == "no_compatible_platform":
+        recommendation = "Aucune plateforme compatible"
+        recommendation_label = (
+            "Aucun réseau ne correspond à la fois à l’usage du persona "
+            "et à l’objectif du cabinet"
+        )
     else:
         recommendation = result["strategic_status"]
         recommendation_label = "Aucune plateforme recommandée"
@@ -201,7 +214,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     decision_rows = [
         [Paragraph("Élément", styles["label"]), Paragraph("Réponse", styles["label"])],
         [
-            Paragraph("Profils ciblés", styles["label"]),
+            Paragraph("Persona analysé", styles["label"]),
             Paragraph(escape(", ".join(answers.get("q2", []))), styles["value"]),
         ],
         [
@@ -219,9 +232,17 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
             ),
         ],
         [
-            Paragraph("Mode d’accès", styles["label"]),
+            Paragraph("Usage par réseau", styles["label"]),
             Paragraph(
-                escape(", ".join(answers.get("q4_modes", [])) or "Non identifié"),
+                escape(
+                    " ; ".join(
+                        f"{platform} : {mode}"
+                        for platform, mode in answers.get(
+                            "q4_modes_by_network", {}
+                        ).items()
+                    )
+                    or "Non identifié"
+                ),
                 styles["value"],
             ),
         ],
@@ -229,22 +250,17 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
             Paragraph("Objectif", styles["label"]),
             Paragraph(escape(objective), styles["value"]),
         ],
-        [
-            Paragraph("Traitement éditorial", styles["label"]),
-            Paragraph(escape(answers.get("q6_treatment", "")), styles["value"]),
-        ],
-        [
-            Paragraph("Effet recherché", styles["label"]),
-            Paragraph(escape(answers.get("q6_effect", "")), styles["value"]),
-        ],
-        [
-            Paragraph("Formats retenus", styles["label"]),
-            Paragraph(
-                escape(", ".join(answers.get("q14", [])) or "Non définis"),
-                styles["value"],
-            ),
-        ],
     ]
+    if selection_is_available:
+        decision_rows.append(
+            [
+                Paragraph("Formats retenus", styles["label"]),
+                Paragraph(
+                    escape(", ".join(answers.get("q14", [])) or "Non définis"),
+                    styles["value"],
+                ),
+            ]
+        )
     story.append(_table(decision_rows, [46 * mm, 104 * mm]))
 
     story.append(Paragraph("Résultat du diagnostic", styles["heading"]))
@@ -255,11 +271,18 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
             Paragraph(escape(result["strategic_status"]), styles["value"]),
         ],
     ]
-    if strategic_choice_is_valid:
+    if strategic_choice_is_valid and selection_is_available:
         status_rows.append(
             [
                 Paragraph("Moyens du cabinet", styles["label"]),
                 Paragraph(escape(result["feasibility_label"]), styles["value"]),
+            ]
+        )
+    elif strategic_choice_is_valid and selection_outcome == "no_compatible_platform":
+        status_rows.append(
+            [
+                Paragraph("Comparaison des plateformes", styles["label"]),
+                Paragraph("Aucune plateforme compatible", styles["value"]),
             ]
         )
     if strategic_choice_is_valid and winner and result.get("tie_break"):
@@ -277,7 +300,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
             story.append(Paragraph(f"• {escape(reason)}", styles["body"]))
             story.append(Spacer(1, 2))
 
-    if strategic_choice_is_valid:
+    if strategic_choice_is_valid and selection_is_available:
         story.append(PageBreak())
         story.append(Paragraph("Vérification de la faisabilité", styles["heading"]))
         story.append(
@@ -286,7 +309,14 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     else:
         actions = result.get("decision_notes", [])
         if actions:
-            story.append(Paragraph("À revoir", styles["heading"]))
+            story.append(Paragraph("Actions nécessaires", styles["heading"]))
+            story.append(
+                Paragraph(
+                    "Corrigez ces éléments avant de relancer le diagnostic.",
+                    styles["body"],
+                )
+            )
+            story.append(Spacer(1, 5))
         for index, action in enumerate(actions, start=1):
             story.append(Paragraph(f"{index}. {escape(action)}", styles["body"]))
             story.append(Spacer(1, 3))

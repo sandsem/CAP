@@ -11,25 +11,26 @@ from scoring import (
 def base_answers():
     return {
         "q1": "Oui",
-        "q2": ["Start-up", "Profession libérale / Freelance"],
+        "q2": ["Profession libérale / Freelance"],
         "q2_coherence": "Oui",
         "q3": "Oui",
         "priority_need": "Structurer et développer son activité",
         "q4": ["Instagram", "TikTok"],
-        "q4_modes": ["Découverte visuelle en suivant des comptes"],
+        "q4_modes_by_network": {
+            "Instagram": "Découverte visuelle en suivant des comptes",
+            "TikTok": "Recommandation de contenus selon les centres d’intérêt",
+        },
         "q5": ["Expérience terrain", "Étude sectorielle"],
         "q5_quality": "Récentes et fiables",
         "q6": "Acquisition",
-        "q6_treatment": "Montrer et vulgariser visuellement",
-        "q6_effect": "Valoriser l’image du cabinet et entretenir la relation",
         "indicator": "Prises de contact qualifiées",
         "target": "2",
         "deadline": "3 mois",
         "q7": {
-            "Facebook": "Aucun compte",
-            "Instagram": "Compte actif",
-            "TikTok": "Aucun compte",
-            "YouTube": "Aucun compte",
+            "Facebook": "Aucun résultat identifié",
+            "Instagram": "Contacts obtenus",
+            "TikTok": "Aucun résultat identifié",
+            "YouTube": "Aucun résultat identifié",
         },
         "q8": "6 à 10 h",
         "q14": ["Carrousel", "Reel"],
@@ -48,6 +49,7 @@ def base_answers():
         "q12": [],
         "q13": "Aucune dépense nécessaire",
         "q15": None,
+        "q16": "Non",
     }
 
 
@@ -65,28 +67,31 @@ class StrategicTests(unittest.TestCase):
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
 
+    def test_treatment_and_effect_do_not_influence_the_engine(self):
+        answers = base_answers()
+        answers["q6_treatment"] = "Expliquer et approfondir un sujet"
+        answers["q6_effect"] = "Démontrer l’expertise"
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Instagram")
+        self.assertNotIn("traitement", result["selection_reasons"][0].lower())
+        self.assertNotIn("effet", result["selection_reasons"][0].lower())
+
     def test_target_network_is_an_eligibility_filter(self):
         answers = base_answers()
         answers["q4"] = ["TikTok"]
-        answers["q4_modes"] = [
-            "Recommandation de contenus selon les centres d’intérêt"
-        ]
-        answers["q6_treatment"] = (
-            "Capter rapidement avec un contenu direct et incarné"
-        )
-        answers["q6_effect"] = "Faire découvrir le cabinet"
+        answers["q4_modes_by_network"] = {
+            "TikTok": "Recommandation de contenus selon les centres d’intérêt"
+        }
         result = evaluate(answers)
         self.assertEqual(result["winner"], "TikTok")
 
     def test_youtube_matches_search_and_expertise(self):
         answers = base_answers()
         answers["q4"] = ["YouTube"]
-        answers["q4_modes"] = ["Recherche volontaire d’une réponse"]
+        answers["q4_modes_by_network"] = {
+            "YouTube": "Recherche volontaire d’une réponse"
+        }
         answers["q6"] = "Expertise / conseil"
-        answers["q6_treatment"] = "Expliquer et approfondir un sujet"
-        answers["q6_effect"] = (
-            "Démontrer l’expertise et répondre à un besoin identifié"
-        )
         answers["q14"] = ["Vidéo longue"]
         result = evaluate(answers)
         self.assertEqual(result["winner"], "YouTube")
@@ -94,45 +99,87 @@ class StrategicTests(unittest.TestCase):
     def test_facebook_matches_community_and_proximity(self):
         answers = base_answers()
         answers["q4"] = ["Facebook"]
-        answers["q4_modes"] = [
-            "Échanges dans une communauté ou un groupe local"
-        ]
+        answers["q4_modes_by_network"] = {
+            "Facebook": "Échanges dans une communauté ou un groupe local"
+        }
         answers["q6"] = "Fidélisation"
-        answers["q6_treatment"] = "Informer et échanger avec une communauté"
-        answers["q6_effect"] = "Créer une relation de proximité"
         answers["q14"] = ["Publication texte"]
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Facebook")
 
+    def test_usage_is_checked_for_each_network(self):
+        answers = base_answers()
+        answers["q7"]["Instagram"] = "Aucun résultat identifié"
+        answers["q7"]["TikTok"] = "Aucun résultat identifié"
+        answers["q4_modes_by_network"]["TikTok"] = (
+            "Découverte visuelle en suivant des comptes"
+        )
+        selection = compare_platforms(answers)
+        self.assertEqual(selection["winner"], "Instagram")
+        self.assertEqual(selection["compatible_platforms"], ["Instagram"])
+
+    def test_platform_with_no_valid_match_is_never_recommended(self):
+        answers = base_answers()
+        answers["q4"] = ["Facebook"]
+        answers["q4_modes_by_network"] = {
+            "Facebook": "Recherche volontaire d’une réponse"
+        }
+        answers["q6"] = "Recrutement"
+        selection = compare_platforms(answers)
+        self.assertIsNone(selection["winner"])
+        self.assertEqual(selection["outcome"], "no_compatible_platform")
+        self.assertEqual(selection["compatible_platforms"], [])
+
+    def test_objective_and_usage_are_both_mandatory(self):
+        answers = base_answers()
+        answers["q4"] = ["YouTube"]
+        answers["q4_modes_by_network"] = {
+            "YouTube": "Recherche volontaire d’une réponse"
+        }
+        answers["q6"] = "Fidélisation"
+        selection = compare_platforms(answers)
+        self.assertIsNone(selection["winner"])
+        self.assertFalse(selection["comparison"]["YouTube"]["objective_match"])
+        self.assertTrue(selection["comparison"]["YouTube"]["usage_match"])
+
+    def test_results_are_not_ranked_against_each_other(self):
+        answers = self._tie_answers()
+        answers["q7"]["Instagram"] = "Audience cible engagée"
+        answers["q7"]["TikTok"] = "Contacts obtenus"
+        selection = compare_platforms(answers)
+        self.assertIsNone(selection["winner"])
+        self.assertEqual(
+            set(selection["tied_platforms"]),
+            {"Instagram", "TikTok"},
+        )
+
     def _tie_answers(self):
         answers = base_answers()
-        answers["q4_modes"] = [
-            "Découverte visuelle en suivant des comptes",
-            "Recommandation de contenus selon les centres d’intérêt",
-        ]
-        answers["q6_treatment"] = "Informer et échanger avec une communauté"
-        answers["q6_effect"] = "Créer une relation de proximité"
-        answers["q7"]["Instagram"] = "Compte inactif"
-        answers["q7"]["TikTok"] = "Compte inactif"
+        answers["q7"]["Instagram"] = "Aucun résultat identifié"
+        answers["q7"]["TikTok"] = "Aucun résultat identifié"
         return answers
 
     def test_results_already_obtained_break_tie_first(self):
         answers = self._tie_answers()
         answers["q7"]["Instagram"] = "Contacts obtenus"
-        answers["q7"]["TikTok"] = "Compte actif"
+        answers["q7"]["TikTok"] = "Aucun résultat identifié"
         selection = compare_platforms(answers)
         self.assertEqual(selection["winner"], "Instagram")
         self.assertEqual(
             selection["tie_break"],
-            "résultats déjà obtenus auprès de la cible",
+            "résultat déjà obtenu auprès de ce persona",
         )
 
-    def test_active_account_breaks_tie_without_results(self):
+    def test_active_account_never_breaks_tie(self):
         answers = self._tie_answers()
         answers["q7"]["Instagram"] = "Compte actif"
         selection = compare_platforms(answers)
-        self.assertEqual(selection["winner"], "Instagram")
-        self.assertEqual(selection["tie_break"], "compte déjà actif")
+        self.assertIsNone(selection["winner"])
+        self.assertEqual(selection["tie_break"], "égalité reconnue")
+        self.assertEqual(
+            set(selection["tied_platforms"]),
+            {"Instagram", "TikTok"},
+        )
 
     def test_equality_is_not_forced(self):
         answers = self._tie_answers()
@@ -156,9 +203,16 @@ class StrategicTests(unittest.TestCase):
         self.assertEqual(result["strategic_status"], "Recommandation impossible")
         self.assertIsNone(result["winner"])
 
-    def test_partial_information_requires_review_without_recommendation(self):
+    def test_one_reliable_source_is_sufficient(self):
         answers = base_answers()
         answers["q5"] = ["Expérience terrain"]
+        result = evaluate(answers)
+        self.assertEqual(result["strategic_status"], "Choix validé")
+        self.assertEqual(result["winner"], "Instagram")
+
+    def test_partially_verified_information_requires_review(self):
+        answers = base_answers()
+        answers["q5_quality"] = "Partiellement vérifiées"
         result = evaluate(answers)
         self.assertEqual(result["strategic_status"], "Projet à revoir")
         self.assertIsNone(result["winner"])
@@ -170,14 +224,38 @@ class StrategicTests(unittest.TestCase):
         control = strategic_control(answers)
         self.assertEqual(control["status"], "Recommandation impossible")
 
-    def test_profiles_to_verify_require_review_with_action(self):
+    def test_multiple_personas_require_separate_diagnostics(self):
         answers = base_answers()
-        answers["q2_coherence"] = "À vérifier"
+        answers["q2"] = ["Start-up", "Profession libérale / Freelance"]
         control = strategic_control(answers)
-        self.assertEqual(control["status"], "Projet à revoir")
+        self.assertEqual(control["status"], "Recommandation impossible")
         self.assertTrue(
-            any("même information" in note for note in control["review"])
+            any("un seul persona" in note for note in control["blocking"])
         )
+
+    def test_each_selected_network_requires_an_observed_usage(self):
+        answers = base_answers()
+        del answers["q4_modes_by_network"]["TikTok"]
+        control = strategic_control(answers)
+        self.assertEqual(control["status"], "Recommandation impossible")
+        self.assertTrue(any("TikTok" in note for note in control["blocking"]))
+
+    def test_target_must_be_numeric(self):
+        answers = base_answers()
+        answers["target"] = "beaucoup"
+        control = strategic_control(answers)
+        self.assertEqual(control["status"], "Recommandation impossible")
+        self.assertIn(
+            "Indiquer un résultat attendu chiffré.",
+            control["blocking"],
+        )
+
+    def test_deadline_must_be_precise(self):
+        answers = base_answers()
+        answers["deadline"] = "dès que possible"
+        control = strategic_control(answers)
+        self.assertEqual(control["status"], "Recommandation impossible")
+        self.assertIn("Indiquer une échéance précise.", control["blocking"])
 
 
 class FeasibilityTests(unittest.TestCase):
@@ -190,6 +268,49 @@ class FeasibilityTests(unittest.TestCase):
             required_skills_for_formats(["Reel"]),
             {"Rédaction / script", "Montage vidéo"},
         )
+        self.assertEqual(
+            required_skills_for_formats(["Reel"], appears_on_camera=True),
+            {
+                "Rédaction / script",
+                "Montage vidéo",
+                "Aisance face caméra",
+            },
+        )
+        self.assertIn(
+            "Aisance face caméra",
+            required_skills_for_formats(["Live"]),
+        )
+
+    def test_recorded_video_without_on_camera_presence_does_not_require_it(self):
+        answers = base_answers()
+        answers["q14"] = ["Reel"]
+        answers["q16"] = "Non"
+        answers["q9"] = {
+            "Rédaction / script": "Autonome",
+            "Montage vidéo": "Autonome",
+        }
+        result = evaluate(answers)
+        skill_row = next(
+            row
+            for row in result["feasibility_rows"]
+            if row["criterion"] == "Formats et compétences"
+        )
+        self.assertEqual(skill_row["status"], "vert")
+
+    def test_recorded_video_on_camera_requires_on_camera_skill(self):
+        answers = base_answers()
+        answers["q14"] = ["Reel"]
+        answers["q16"] = "Oui"
+        answers["q9"]["Aisance face caméra"] = "À acquérir"
+        answers["q12"] = ["Solution à trouver"]
+        result = evaluate(answers)
+        skill_row = next(
+            row
+            for row in result["feasibility_rows"]
+            if row["criterion"] == "Formats et compétences"
+        )
+        self.assertEqual(skill_row["status"], "rouge")
+        self.assertIn("Aisance face caméra", skill_row["observation"])
 
     def test_all_green_means_project_ready(self):
         result = evaluate(base_answers())

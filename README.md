@@ -7,32 +7,45 @@ aux experts-comptables qui créent leur cabinet ex nihilo.
 
 Le diagnostic suit quatre étapes :
 
-1. décrire la cible, son besoin et la manière dont elle recherche l’information ;
-2. formaliser l’objectif et l’effet recherché ;
-3. indiquer les résultats déjà obtenus sur chaque plateforme ;
+1. analyser un persona, son besoin et la manière dont il recherche l’information ;
+2. formaliser l’objectif du cabinet ;
+3. indiquer, si nécessaire, les résultats déjà obtenus auprès de ce persona ;
 4. vérifier les formats, les compétences et les moyens mobilisables.
 
 Seuls les réseaux réellement utilisés par la cible pour rechercher
 l’information liée à son besoin sont comparés.
 
+Un diagnostic porte sur un seul persona. Si le cabinet souhaite étudier
+plusieurs publics, il recommence le diagnostic pour chacun. La catégorie du
+persona ne donne aucun avantage automatique à une plateforme.
+
 ## Règle de recommandation
 
-CAP compare Facebook, Instagram, TikTok et YouTube à partir d’une même grille :
+CAP compare Facebook, Instagram, TikTok et YouTube à partir de deux conditions
+obligatoires :
 
-- mode dominant de découverte du contenu ;
-- traitement éditorial privilégié ;
-- effet recherché auprès de l’audience ;
-- cohérence avec l’objectif du cabinet.
+- la manière dont le persona recherche concrètement l’information sur chaque réseau ;
+- la capacité de la plateforme à contribuer à l’objectif du cabinet.
+
+L’usage est renseigné séparément pour chaque plateforme sélectionnée. Le moteur
+ne compte pas des correspondances : si une condition manque, la plateforme
+n’est pas compatible.
 
 Le profil générique du persona et le temps disponible ne donnent aucun point à
 une plateforme. Aucun score sur 100 ni aucune pondération ne sont utilisés.
 
-En cas d’égalité, CAP examine successivement :
+Si plusieurs plateformes restent compatibles, CAP examine successivement :
 
-1. les résultats déjà obtenus auprès de la cible ;
-2. l’existence d’un compte actif, uniquement en l’absence de résultat ;
-3. une plateforme retenue pour une période d’observation si aucun élément
+1. un résultat déjà obtenu auprès du persona analysé pour le besoin étudié ;
+2. une plateforme retenue pour une période d’observation si aucun élément
    objectif ne permet encore de trancher.
+
+L’existence d’un compte actif, inactif ou absent ne modifie jamais ce choix.
+Elle indique seulement, après la recommandation, s’il faut continuer à utiliser
+un compte, le réactiver ou en créer un.
+
+Si aucune plateforme ne remplit les deux conditions, CAP affiche
+`Aucune plateforme compatible` au lieu de forcer une recommandation.
 
 ## Contrôles
 
@@ -54,6 +67,9 @@ pour afficher `Projet prêt`.
 Les moyens ne modifient jamais la cohérence stratégique de la plateforme.
 Le contrôle porte sur le temps, les formats et compétences, le matériel, le
 responsable et le budget. Il n’utilise aucun pourcentage de faisabilité.
+
+L’aisance face caméra est demandée pour un Live. Pour une vidéo enregistrée,
+elle est contrôlée seulement si une personne apparaît à l’écran.
 
 ## Guides de plateforme
 
@@ -79,5 +95,5 @@ l’application.
 python -m unittest discover -s tests -v
 ```
 
-La suite comprend 240 tests, dont une matrice de 216 scénarios croisant les
+La suite comprend 254 tests, dont une matrice de 216 scénarios croisant les
 données stratégiques et les moyens du cabinet.

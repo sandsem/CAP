@@ -6,25 +6,26 @@ from streamlit.testing.v1 import AppTest
 class AppSmokeTests(unittest.TestCase):
     ANSWERS = {
         "q1": "Oui",
-        "q2": ["Start-up", "Profession libérale / Freelance"],
+        "q2": ["Profession libérale / Freelance"],
         "q2_coherence": "Oui",
         "q3": "Oui",
         "priority_need": "Structurer et développer son activité",
         "q4": ["Instagram", "TikTok"],
-        "q4_modes": ["Découverte visuelle en suivant des comptes"],
+        "q4_modes_by_network": {
+            "Instagram": "Découverte visuelle en suivant des comptes",
+            "TikTok": "Recommandation de contenus selon les centres d’intérêt",
+        },
         "q5": ["Expérience terrain", "Étude sectorielle"],
         "q5_quality": "Récentes et fiables",
         "q6": "Acquisition",
-        "q6_treatment": "Montrer et vulgariser visuellement",
-        "q6_effect": "Valoriser l’image du cabinet et entretenir la relation",
         "indicator": "Prises de contact qualifiées",
         "target": "2",
         "deadline": "3 mois",
         "q7": {
-            "Facebook": "Aucun compte",
-            "Instagram": "Compte actif",
-            "TikTok": "Aucun compte",
-            "YouTube": "Aucun compte",
+            "Facebook": "Aucun résultat identifié",
+            "Instagram": "Contacts obtenus",
+            "TikTok": "Aucun résultat identifié",
+            "YouTube": "Aucun résultat identifié",
         },
         "q8": "6 à 10 h",
         "q14": ["Carrousel", "Reel"],
@@ -42,6 +43,7 @@ class AppSmokeTests(unittest.TestCase):
         "q12": [],
         "q13": "Aucune dépense nécessaire",
         "q15": None,
+        "q16": "Non",
     }
 
     def test_home_and_prepare_render(self):
@@ -80,7 +82,7 @@ class AppSmokeTests(unittest.TestCase):
 
     def test_review_status_does_not_display_a_platform_recommendation(self):
         answers = dict(self.ANSWERS)
-        answers["q5"] = ["Expérience terrain"]
+        answers["q5_quality"] = "Partiellement vérifiées"
         app = AppTest.from_file("app.py", default_timeout=10)
         app.session_state["screen"] = "result"
         app.session_state["answers"] = answers
@@ -96,6 +98,58 @@ class AppSmokeTests(unittest.TestCase):
             element.value for element in app.markdown if hasattr(element, "value")
         )
         self.assertIn("Aucune plateforme ne peut être recommandée", rendered)
+        self.assertNotIn("Actions nécessaires", rendered)
+
+    def test_target_page_uses_one_persona_and_simple_wording(self):
+        app = AppTest.from_file("app.py", default_timeout=10)
+        app.session_state["screen"] = "target"
+        app.session_state["answers"] = self.ANSWERS
+        app.session_state["result"] = None
+        app.session_state["return_to_review"] = False
+        app.run()
+
+        self.assertEqual(len(app.exception), 0)
+        labels = [radio.label for radio in app.radio]
+        labels.extend(selectbox.label for selectbox in app.selectbox)
+        labels.extend(text.label for text in app.text_input)
+        rendered_labels = " ".join(labels)
+        self.assertIn("Persona défini ?", rendered_labels)
+        self.assertIn("Quel persona souhaitez-vous analyser ?", rendered_labels)
+        self.assertNotIn("Persona finalisé ?", rendered_labels)
+        self.assertNotIn("Besoins recensés ?", rendered_labels)
+        self.assertNotIn("Plusieurs usages", rendered_labels)
+
+    def test_objective_page_has_no_treatment_or_effect_question(self):
+        app = AppTest.from_file("app.py", default_timeout=10)
+        app.session_state["screen"] = "objective"
+        app.session_state["answers"] = self.ANSWERS
+        app.session_state["result"] = None
+        app.session_state["return_to_review"] = False
+        app.run()
+
+        self.assertEqual(len(app.exception), 0)
+        labels = [selectbox.label for selectbox in app.selectbox]
+        rendered_labels = " ".join(labels)
+        self.assertNotIn("traiter vos contenus", rendered_labels)
+        self.assertNotIn("effet principal", rendered_labels)
+
+    def test_target_page_asks_one_usage_per_selected_network(self):
+        app = AppTest.from_file("app.py", default_timeout=10)
+        app.session_state["screen"] = "target"
+        app.session_state["answers"] = self.ANSWERS
+        app.session_state["result"] = None
+        app.session_state["return_to_review"] = False
+        app.run()
+
+        labels = [selectbox.label for selectbox in app.selectbox]
+        self.assertIn(
+            "Sur Instagram, comment ce persona recherche-t-il concrètement cette information ?",
+            labels,
+        )
+        self.assertIn(
+            "Sur TikTok, comment ce persona recherche-t-il concrètement cette information ?",
+            labels,
+        )
 
 
 if __name__ == "__main__":

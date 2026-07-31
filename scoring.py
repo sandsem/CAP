@@ -10,10 +10,15 @@ from config import (
 STATUS_ORDER = {"vert": 0, "orange": 1, "rouge": 2}
 
 
-def required_skills_for_formats(formats: list[str]) -> set[str]:
+def required_skills_for_formats(
+    formats: list[str],
+    appears_on_camera: bool = False,
+) -> set[str]:
     required: set[str] = set()
     for content_format in formats:
         required.update(FORMAT_REQUIRED_SKILLS.get(content_format, set()))
+    if appears_on_camera and set(formats).intersection(VIDEO_FORMATS):
+        required.add("Aisance face caméra")
     return required
 
 
@@ -21,10 +26,8 @@ def strategic_control(answers: dict) -> dict:
     blocking = []
     review = []
 
-    if answers.get("q1") == "Non":
+    if answers.get("q1") != "Oui":
         blocking.append("Finaliser le persona de la clientèle recherchée.")
-    elif answers.get("q1") == "Partiellement":
-        review.append("Finaliser les informations encore partielles du persona.")
 
     profiles = [
         profile
@@ -32,24 +35,18 @@ def strategic_control(answers: dict) -> dict:
         if profile != "Non identifié"
     ]
     if not profiles:
-        blocking.append("Identifier au moins un profil cible.")
-
-    if answers.get("q3") == "Non" or not answers.get("priority_need", "").strip():
+        blocking.append("Identifier le persona à analyser.")
+    elif len(profiles) > 1:
         blocking.append(
-            "Définir le besoin prioritaire auquel le cabinet souhaite répondre."
+            "Conserver un seul persona et réaliser un diagnostic séparé pour les autres."
         )
-    elif answers.get("q3") == "Partiellement":
-        review.append("Compléter le recensement des besoins de la cible.")
 
-    if answers.get("q2_coherence") == "Non":
+    if (
+        answers.get("q3") in {"Non", "Partiellement"}
+        or not answers.get("priority_need", "").strip()
+    ):
         blocking.append(
-            "Conserver uniquement les profils qui recherchent la même information "
-            "sur les mêmes réseaux, puis réaliser un diagnostic séparé pour les autres."
-        )
-    elif answers.get("q2_coherence") in {"À vérifier", "Partiellement"}:
-        review.append(
-            "Confirmer que les profils sélectionnés recherchent la même information "
-            "sur les mêmes réseaux."
+            "Définir le besoin d’information prioritaire du persona."
         )
 
     eligible = [
@@ -62,19 +59,18 @@ def strategic_control(answers: dict) -> dict:
         )
 
     known_discovery_modes = set().union(
-        *(
-            reference["discovery_modes"]
-            for reference in PLATFORM_REFERENCE.values()
-        )
+        *(reference["discovery_modes"] for reference in PLATFORM_REFERENCE.values())
     )
-    discovery_modes = [
-        mode
-        for mode in answers.get("q4_modes", [])
-        if mode in known_discovery_modes
+    modes_by_network = answers.get("q4_modes_by_network", {})
+    missing_modes = [
+        platform
+        for platform in eligible
+        if modes_by_network.get(platform) not in known_discovery_modes
     ]
-    if not discovery_modes:
+    if missing_modes:
         blocking.append(
-            "Préciser comment la cible accède habituellement à cette information."
+            "Préciser comment le persona recherche cette information sur "
+            f"{', '.join(missing_modes)}."
         )
 
     sources = [
@@ -84,8 +80,6 @@ def strategic_control(answers: dict) -> dict:
         blocking.append(
             "Documenter le comportement de la cible à partir d’au moins une source."
         )
-    elif len(sources) == 1:
-        review.append("Recouper l’information avec une seconde source.")
 
     quality = answers.get("q5_quality")
     if quality == "Anciennes ou non vérifiées":
@@ -93,21 +87,30 @@ def strategic_control(answers: dict) -> dict:
             "Actualiser et vérifier les informations relatives aux canaux de la cible."
         )
     elif quality == "Partiellement vérifiées":
-        review.append("Recouper les informations encore partiellement vérifiées.")
+        review.append(
+            "Confirmer les réseaux utilisés par le persona à l’aide d’une source récente."
+        )
 
-    if answers.get("q6") in {None, "", "Non défini"}:
+    objective = answers.get("q6")
+    if objective in {None, "", "Non défini"}:
         blocking.append("Définir l’objectif poursuivi par le cabinet.")
-    if not all(
-        str(answers.get(field, "")).strip()
-        for field in ("indicator", "target", "deadline")
-    ):
+    elif objective == "Autre":
+        blocking.append(
+            "Choisir un objectif proposé afin de pouvoir comparer les plateformes."
+        )
+
+    indicator = str(answers.get("indicator", "")).strip()
+    target = str(answers.get("target", "")).strip()
+    deadline = str(answers.get("deadline", "")).strip()
+    if not indicator or not target or not deadline:
         blocking.append(
             "Préciser l’indicateur, le résultat attendu et l’échéance de l’objectif."
         )
-    if answers.get("q6_treatment") in {None, "", "Non défini"}:
-        blocking.append("Choisir le traitement éditorial adapté au projet.")
-    if answers.get("q6_effect") in {None, "", "Non défini"}:
-        blocking.append("Préciser l’effet principal recherché auprès de l’audience.")
+    else:
+        if not any(character.isdigit() for character in target):
+            blocking.append("Indiquer un résultat attendu chiffré.")
+        if not any(character.isdigit() for character in deadline):
+            blocking.append("Indiquer une échéance précise.")
 
     if blocking:
         return {
@@ -124,20 +127,16 @@ def strategic_control(answers: dict) -> dict:
     return {"status": "Choix validé", "blocking": [], "review": []}
 
 
-def _platform_correspondences(answers: dict, platform: str) -> list[str]:
+def _platform_checks(answers: dict, platform: str) -> dict:
     reference = PLATFORM_REFERENCE[platform]
-    correspondences = []
-    if answers.get("q6") in reference["objectives"]:
-        correspondences.append("objectif")
-
-    selected_modes = set(answers.get("q4_modes", []))
-    if selected_modes.intersection(reference["discovery_modes"]):
-        correspondences.append("mode de découverte")
-    if answers.get("q6_treatment") == reference["editorial_treatment"]:
-        correspondences.append("traitement éditorial")
-    if answers.get("q6_effect") == reference["audience_effect"]:
-        correspondences.append("effet recherché")
-    return correspondences
+    mode = answers.get("q4_modes_by_network", {}).get(platform)
+    objective_match = answers.get("q6") in reference["objectives"]
+    usage_match = mode in reference["discovery_modes"]
+    return {
+        "objective_match": objective_match,
+        "usage_match": usage_match,
+        "compatible": objective_match and usage_match,
+    }
 
 
 def compare_platforms(answers: dict) -> dict:
@@ -145,79 +144,75 @@ def compare_platforms(answers: dict) -> dict:
     eligible = [
         network for network in answers.get("q4", []) if network in PLATFORM_NAMES
     ]
-    comparison = {
-        platform: _platform_correspondences(answers, platform)
+    comparison = {platform: _platform_checks(answers, platform) for platform in eligible}
+    compatible = [
+        platform
         for platform in eligible
-    }
+        if comparison[platform]["compatible"]
+    ]
 
     if control["status"] != "Choix validé" or not eligible:
         return {
             "winner": None,
             "tied_platforms": [],
+            "compatible_platforms": compatible,
             "comparison": comparison,
             "tie_break": None,
+            "outcome": "invalid_data",
         }
 
-    best_count = max(len(items) for items in comparison.values())
-    tied = [
-        platform
-        for platform, items in comparison.items()
-        if len(items) == best_count
-    ]
-    if len(tied) == 1:
+    if not compatible:
         return {
-            "winner": tied[0],
+            "winner": None,
             "tied_platforms": [],
+            "compatible_platforms": [],
             "comparison": comparison,
-            "tie_break": "caractéristiques de la plateforme",
+            "tie_break": None,
+            "outcome": "no_compatible_platform",
+        }
+
+    if len(compatible) == 1:
+        return {
+            "winner": compatible[0],
+            "tied_platforms": [],
+            "compatible_platforms": compatible,
+            "comparison": comparison,
+            "tie_break": "objectif et usage du persona",
+            "outcome": "recommended",
         }
 
     statuses = answers.get("q7", {})
-    result_rank = {
-        platform: {
-            "Contacts obtenus": 2,
-            "Audience cible engagée": 1,
-        }.get(statuses.get(platform, "Aucun compte"), 0)
-        for platform in tied
-    }
-    highest_result = max(result_rank.values(), default=0)
     result_leaders = [
         platform
-        for platform in tied
-        if result_rank[platform] == highest_result
+        for platform in compatible
+        if statuses.get(platform) in {"Audience cible engagée", "Contacts obtenus"}
     ]
-    if highest_result > 0 and len(result_leaders) == 1:
+    if len(result_leaders) == 1:
         return {
             "winner": result_leaders[0],
             "tied_platforms": [],
+            "compatible_platforms": compatible,
             "comparison": comparison,
-            "tie_break": "résultats déjà obtenus auprès de la cible",
+            "tie_break": "résultat déjà obtenu auprès de ce persona",
+            "outcome": "recommended",
         }
-
-    # Le compte actif n’intervient qu’en l’absence de résultat qualifié.
-    if highest_result == 0:
-        active_rank = {
-            platform: int(statuses.get(platform) == "Compte actif")
-            for platform in tied
+    if len(result_leaders) > 1:
+        return {
+            "winner": None,
+            "tied_platforms": result_leaders,
+            "compatible_platforms": compatible,
+            "comparison": comparison,
+            "tie_break": "égalité reconnue",
+            "outcome": "tie",
         }
-        active_leaders = [
-            platform
-            for platform in tied
-            if active_rank[platform] == max(active_rank.values(), default=0)
-        ]
-        if max(active_rank.values(), default=0) > 0 and len(active_leaders) == 1:
-            return {
-                "winner": active_leaders[0],
-                "tied_platforms": [],
-                "comparison": comparison,
-                "tie_break": "compte déjà actif",
-            }
 
     return {
         "winner": None,
-        "tied_platforms": tied,
+        "tied_platforms": compatible,
+        "compatible_platforms": compatible,
         "comparison": comparison,
         "tie_break": "égalité reconnue",
+        "outcome": "tie",
     }
 
 
@@ -234,7 +229,10 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
     rows = []
     formats = list(answers.get("q14", []))
     skills = answers.get("q9", {})
-    required_skills = required_skills_for_formats(formats)
+    required_skills = required_skills_for_formats(
+        formats,
+        appears_on_camera=answers.get("q16") == "Oui",
+    )
 
     time = answers.get("q8", "Non évalué")
     if time == "Aucun temps disponible":
@@ -455,27 +453,21 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
     return {"label": label, "rows": rows, "actions": actions}
 
 
-def build_selection_reasons(platform: str | None, comparison: dict) -> list[str]:
+def build_selection_reasons(
+    platform: str | None,
+    comparison: dict,
+    objective: str | None,
+) -> list[str]:
     if not platform:
         return []
-    reference = PLATFORM_REFERENCE[platform]
-    reasons = []
-    matched = comparison.get(platform, [])
-    if "objectif" in matched:
-        reasons.append("La plateforme peut contribuer à l’objectif retenu.")
-    if "mode de découverte" in matched:
-        reasons.append(
-            f"Son mode d’accès dominant repose sur {reference['discovery_label']}."
-        )
-    if "traitement éditorial" in matched:
-        reasons.append(
-            f"Le traitement attendu correspond à {reference['treatment_label']}."
-        )
-    if "effet recherché" in matched:
-        reasons.append(
-            f"L’effet recherché est la {reference['effect_label']}."
-        )
-    return reasons
+    checks = comparison.get(platform, {})
+    if not checks.get("compatible"):
+        return []
+    return [
+        f"Parmi les réseaux utilisés par ce persona pour rechercher cette "
+        f"information, {platform} correspond à la fois à son mode d’accès et "
+        f"à l’objectif « {objective} » du cabinet."
+    ]
 
 
 def evaluate(answers: dict) -> dict:
@@ -498,12 +490,16 @@ def evaluate(answers: dict) -> dict:
         "decision_notes": control["blocking"] + control["review"],
         "winner": winner,
         "tied_platforms": selection["tied_platforms"],
+        "compatible_platforms": selection["compatible_platforms"],
+        "selection_outcome": selection["outcome"],
         "observation_platform": observation_platform,
         "platform_for_launch": platform_for_launch,
         "comparison": selection["comparison"],
         "tie_break": selection["tie_break"],
         "selection_reasons": build_selection_reasons(
-            winner, selection["comparison"]
+            winner,
+            selection["comparison"],
+            answers.get("q6"),
         ),
         "feasibility_label": feasibility["label"],
         "feasibility_rows": feasibility["rows"],
