@@ -57,6 +57,14 @@ def _styles() -> dict:
             "CapValue", parent=base["BodyText"], fontName=FONT_REGULAR,
             fontSize=8.3, leading=11,
         ),
+        "action_eyebrow": ParagraphStyle(
+            "CapActionEyebrow", parent=base["BodyText"], fontName=FONT_BOLD,
+            fontSize=8.2, leading=10, textColor=colors.HexColor("#6B7280"),
+        ),
+        "action_number": ParagraphStyle(
+            "CapActionNumber", parent=base["BodyText"], fontName=FONT_BOLD,
+            fontSize=9, leading=12, textColor=colors.HexColor("#6B7280"),
+        ),
     }
 
 
@@ -151,6 +159,42 @@ def _feasibility_table(rows: list[dict], styles: dict) -> Table:
     return table
 
 
+def _actions_box(actions: list[str], styles: dict, title: str, introduction: str) -> Table:
+    data = [
+        [Paragraph(escape(title.upper()), styles["action_eyebrow"]), ""],
+        [Paragraph(escape(introduction), styles["body"]), ""],
+    ]
+    for index, action in enumerate(actions, start=1):
+        data.append([
+            Paragraph(f"{index:02d}", styles["action_number"]),
+            Paragraph(escape(action), styles["body"]),
+        ])
+
+    commands = [
+        ("SPAN", (0, 0), (1, 0)),
+        ("SPAN", (0, 1), (1, 1)),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7F8F8")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#222222")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+    ]
+    for row_index in range(2, len(data)):
+        commands.append(("LINEABOVE", (0, row_index), (-1, row_index), .35, colors.HexColor("#D9DCDD")))
+
+    table = Table(
+        data,
+        colWidths=[18 * mm, 146 * mm],
+        style=TableStyle(commands),
+        cornerRadii=[8, 8, 8, 8],
+        spaceBefore=6,
+        spaceAfter=8,
+    )
+    return table
+
+
 def build_summary_pdf(answers: dict, result: dict) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(
@@ -196,7 +240,6 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     decision_rows = [[Paragraph("Élément", styles["label"]), Paragraph("Réponse", styles["label"])] ,
         [Paragraph("Persona analysé", styles["label"]), Paragraph(escape(persona), styles["value"])],
         [Paragraph("Besoin prioritaire", styles["label"]), Paragraph(escape(answers.get("priority_need", "")), styles["value"])],
-        [Paragraph("Réseaux connus", styles["label"]), Paragraph(escape(", ".join(answers.get("q4", []))), styles["value"])],
         [Paragraph("Réseau le plus souvent utilisé", styles["label"]), Paragraph(escape(answers.get("q4_priority") or "Non identifié"), styles["value"])],
         [Paragraph("Source de l’information", styles["label"]), Paragraph(escape(source_text), styles["value"])],
         [Paragraph("Objectif", styles["label"]), Paragraph(escape(objective_line), styles["value"])],
@@ -234,16 +277,22 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         actions = result.get("launch_actions", [])
         if actions:
             story.append(Paragraph("Actions à réaliser", styles["heading"]))
-            for index, action in enumerate(actions, start=1):
-                story.append(Paragraph(f"{index}. {escape(action)}", styles["body"]))
-                story.append(Spacer(1, 3))
+            story.append(_actions_box(
+                actions,
+                styles,
+                "Préparation opérationnelle",
+                "Réalisez ces actions avant de commencer.",
+            ))
     else:
         actions = result.get("decision_notes", [])
         if actions:
             story.append(Paragraph("Actions nécessaires", styles["heading"]))
-            for index, action in enumerate(actions, start=1):
-                story.append(Paragraph(f"{index}. {escape(action)}", styles["body"]))
-                story.append(Spacer(1, 3))
+            story.append(_actions_box(
+                actions,
+                styles,
+                "À corriger",
+                "Corrigez ces éléments avant de relancer le diagnostic.",
+            ))
 
     story.extend([
         Spacer(1, 14),

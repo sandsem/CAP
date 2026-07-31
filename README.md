@@ -15,6 +15,11 @@ Un cabinet qui vise plusieurs personas réalise un diagnostic séparé pour
 chacun. Le besoin prioritaire précise le sujet des futurs contenus ; il ne
 classe pas automatiquement les plateformes.
 
+Si le persona n’est pas défini, CAP arrête le diagnostic avant toute autre
+question. L’indicateur proposé à l’étape suivante dépend de l’objectif choisi :
+un indicateur de recrutement ne peut donc pas mesurer une acquisition de
+clients.
+
 ## Moteur de recommandation
 
 Lorsque le cabinet connaît les réseaux utilisés par le persona, cette
@@ -85,6 +90,6 @@ streamlit run app.py
 python -m unittest discover -s tests -v
 ```
 
-La suite comprend 312 tests : 275 scénarios de décision croisant les personas,
+La suite comprend 321 tests : 275 scénarios de décision croisant les personas,
 les objectifs et les situations réseau, ainsi que des tests du moteur, de la
 faisabilité, de l’interface et de l’export PDF.

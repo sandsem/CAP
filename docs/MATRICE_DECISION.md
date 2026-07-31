@@ -12,7 +12,7 @@ ces éléments, aucune recommandation n’est produite.
 
 ## 2. Première sélection des plateformes
 
-### Réseaux connus
+### Réseaux utilisés par le persona
 
 - Un seul réseau connu : ce réseau est retenu.
 - Plusieurs réseaux et un réseau privilégié connu : le réseau le plus souvent
@@ -60,6 +60,23 @@ ci-dessous ne servent qu’à départager plusieurs réseaux possibles.
 CAP n’attribue pas un usage exclusif à chaque plateforme. La recherche, la
 recommandation et le suivi de comptes peuvent coexister sur plusieurs réseaux.
 Les résultats déjà obtenus et l’état du compte sont également exclus du calcul.
+
+### Indicateur lié à l’objectif
+
+L’indicateur ne choisit pas la plateforme. Il sert à mesurer le résultat de la
+communication. La liste affichée dépend donc de l’objectif retenu :
+
+| Objectif | Indicateurs proposés |
+|---|---|
+| Visibilité et notoriété | Portée, visites, interactions, enregistrements ou partages |
+| Acquisition | Demandes de contact, rendez-vous, lettres de mission, chiffre d’affaires |
+| Expertise et conseil | Visites, interactions, enregistrements ou partages, demandes de contact |
+| Recrutement | Candidatures, entretiens de recrutement |
+| Fidélisation | Interactions, demandes de clients existants |
+
+Un indicateur libre reste possible. En revanche, un indicateur connu mais sans
+lien avec l’objectif bloque l’analyse. Une candidature reçue ne peut donc pas
+mesurer un objectif d’acquisition de clients.
 
 ## 4. Départage par les moyens
 

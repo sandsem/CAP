@@ -93,6 +93,13 @@ class StrategicTests(unittest.TestCase):
         answers["q6"] = "Non défini"
         self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
 
+    def test_indicator_must_match_the_objective(self):
+        answers = base_answers()
+        answers["indicator"] = "Candidatures reçues"
+        control = strategic_control(answers)
+        self.assertEqual(control["status"], "Recommandation impossible")
+        self.assertIn("indicateur directement lié", " ".join(control["blocking"]))
+
     def test_custom_objective_is_allowed_when_described(self):
         answers = base_answers()
         answers.update({"q6": "Autre", "custom_objective": "Développer les partenariats locaux"})
@@ -201,6 +208,13 @@ class FeasibilityTests(unittest.TestCase):
         responsible = self._row(evaluate(answers), "Responsable")
         self.assertEqual(responsible["status"], "vert")
         self.assertIn("Un collaborateur désigné", responsible["observation"])
+
+    def test_another_responsible_person_is_used_when_specified(self):
+        answers = base_answers()
+        answers.update({"q11": ["Autre"], "custom_pilot": "La secrétaire du cabinet"})
+        responsible = self._row(evaluate(answers), "Responsable")
+        self.assertEqual(responsible["status"], "vert")
+        self.assertIn("La secrétaire du cabinet", responsible["observation"])
 
 
 if __name__ == "__main__":

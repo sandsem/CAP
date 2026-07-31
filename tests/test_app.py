@@ -13,6 +13,7 @@ class InterfaceRegressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = Path("app.py").read_text(encoding="utf-8")
+        cls.pdf_source = Path("pdf_export.py").read_text(encoding="utf-8")
 
     def test_native_enter_instruction_is_hidden(self):
         self.assertIn('[data-testid*="InputInstructions"]', self.source)
@@ -28,6 +29,18 @@ class InterfaceRegressionTests(unittest.TestCase):
 
         for network in ("Facebook", "Instagram", "TikTok", "YouTube"):
             self.assertIn(network, OUT_OF_SCOPE_NETWORK)
+
+    def test_responsible_options_include_other(self):
+        from config import PILOT_OPTIONS
+
+        self.assertIn("Autre", PILOT_OPTIONS)
+
+    def test_redundant_known_network_row_is_not_displayed(self):
+        self.assertNotIn('("Réseaux connus :",', self.source)
+        self.assertNotIn('Paragraph("Réseaux connus"', self.pdf_source)
+
+    def test_reference_base_is_not_announced_in_the_questionnaire(self):
+        self.assertNotIn("CAP utilisera sa base de référence", self.source)
 
 
 @unittest.skipIf(AppTest is None, "Streamlit n’est pas installé dans cet environnement")
@@ -53,6 +66,18 @@ class AppSmokeTests(unittest.TestCase):
         self.assertNotIn("comment ce persona recherche", text.lower())
         self.assertNotIn("usage observé", text.lower())
 
+    def test_undefined_persona_stops_the_target_step(self):
+        answers = base_answers()
+        answers["q1"] = "Non"
+        app = self._app("target", answers)
+        labels = [item.label for item in list(app.selectbox) + list(app.text_input)]
+        self.assertEqual(labels, [])
+        self.assertNotIn("Continuer", [button.label for button in app.button])
+        self.assertIn(
+            "Finalisez le persona avant de continuer.",
+            [item.value for item in app.error],
+        )
+
     def test_objective_non_defined_hides_smart_fields(self):
         answers = base_answers()
         answers["q6"] = "Non défini"
@@ -60,6 +85,12 @@ class AppSmokeTests(unittest.TestCase):
         labels = [item.label for item in list(app.selectbox) + list(app.text_input)]
         self.assertNotIn("Indicateur suivi", labels)
         self.assertNotIn("Résultat attendu", labels)
+
+    def test_acquisition_does_not_offer_recruitment_indicators(self):
+        app = self._app("objective", base_answers())
+        indicator = next(item for item in app.selectbox if item.label == "Indicateur suivi")
+        self.assertNotIn("Candidatures reçues", indicator.options)
+        self.assertIn("Demandes de contact", indicator.options)
 
     def test_resources_does_not_reveal_a_platform(self):
         app = self._app("resources", base_answers())
@@ -70,6 +101,12 @@ class AppSmokeTests(unittest.TestCase):
     def test_resources_allows_several_responsible_people(self):
         app = self._app("resources", base_answers())
         self.assertIn("Qui pilotera la communication ?", [item.label for item in app.multiselect])
+
+    def test_resources_allows_another_responsible_person(self):
+        answers = base_answers()
+        answers.update({"q11": ["Autre"], "custom_pilot": "La secrétaire du cabinet"})
+        app = self._app("resources", answers)
+        self.assertIn("Précisez l’autre responsable", [item.label for item in app.text_input])
 
     def test_review_has_no_previous_button(self):
         app = self._app("review", base_answers())

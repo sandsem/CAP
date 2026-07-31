@@ -1,5 +1,7 @@
 from config import (
     FORMAT_REQUIRED_SKILLS,
+    INDICATOR_OPTIONS,
+    INDICATORS_BY_OBJECTIVE,
     OBJECTIVE_PRIORITY_PLATFORMS,
     NO_PILOT,
     OUT_OF_SCOPE_NETWORK,
@@ -51,7 +53,7 @@ def strategic_control(answers: dict) -> dict:
     if not selected_networks:
         blocking.append("Indiquer les réseaux utilisés par le persona ou choisir « Je ne sais pas ».")
     elif exclusive and len(selected_networks) > 1:
-        blocking.append("Choisir les réseaux connus ou une seule réponse spéciale.")
+        blocking.append("Choisir les réseaux utilisés ou une seule réponse spéciale.")
     elif OUT_OF_SCOPE_NETWORK in selected_networks:
         blocking.append(
             "CAP compare Facebook, Instagram, TikTok et YouTube. Le réseau indiqué sort du périmètre de l’outil."
@@ -84,6 +86,9 @@ def strategic_control(answers: dict) -> dict:
     if not indicator or not target or not deadline:
         blocking.append("Préciser l’indicateur, le résultat attendu et l’échéance.")
     else:
+        allowed_indicators = INDICATORS_BY_OBJECTIVE.get(objective, INDICATOR_OPTIONS)
+        if indicator in INDICATOR_OPTIONS and indicator not in allowed_indicators:
+            blocking.append("Choisir un indicateur directement lié à l’objectif défini.")
         if not any(character.isdigit() for character in target):
             blocking.append("Indiquer un résultat attendu chiffré.")
         if not any(character.isdigit() for character in deadline):
@@ -284,7 +289,16 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
     pilots = answers.get("q11", [])
     if isinstance(pilots, str):
         pilots = [pilots] if pilots else []
-    active_pilots = [pilot for pilot in pilots if pilot != NO_PILOT]
+    active_pilots = []
+    for pilot in pilots:
+        if pilot == NO_PILOT:
+            continue
+        if pilot == "Autre":
+            custom_pilot = str(answers.get("custom_pilot", "")).strip()
+            if custom_pilot:
+                active_pilots.append(custom_pilot)
+            continue
+        active_pilots.append(pilot)
     if not active_pilots:
         rows.append(_criterion(
             "Responsable", "rouge",
@@ -349,7 +363,7 @@ def _selection_reasons(answers: dict, platforms: list[str], selection: dict) -> 
             f"{platform_text} ressort de la base de référence du persona ou des réseaux réellement observés."
         ]
     return [
-        f"{platform_text} présente la meilleure cohérence entre le persona, les réseaux connus et l’objectif « {objective} »."
+        f"{platform_text} présente la meilleure cohérence entre le persona, les informations renseignées et l’objectif « {objective} »."
     ]
 
 

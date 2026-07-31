@@ -1,6 +1,11 @@
 import unittest
 
-from config import OBJECTIVE_PRIORITY_PLATFORMS, PERSONA_PLATFORM_REFERENCE, PLATFORM_NAMES
+from config import (
+    INDICATORS_BY_OBJECTIVE,
+    OBJECTIVE_PRIORITY_PLATFORMS,
+    PERSONA_PLATFORM_REFERENCE,
+    PLATFORM_NAMES,
+)
 from scoring import compare_platforms
 from tests.test_scoring import base_answers
 
@@ -22,6 +27,10 @@ def _scenario_test(profile: str, objective: str, network_case: str):
         answers["q2"] = [profile]
         answers["custom_profile"] = "Persona métier spécifique" if profile == "Autre" else ""
         answers["q6"] = objective
+        answers["indicator"] = next(
+            item for item in INDICATORS_BY_OBJECTIVE[objective]
+            if item != "Autre indicateur"
+        )
         if network_case == "inconnu":
             answers.update({
                 "q4": ["Je ne sais pas"],
@@ -49,7 +58,7 @@ def _scenario_test(profile: str, objective: str, network_case: str):
 
 
 class DecisionScenarioTests(unittest.TestCase):
-    """250 scénarios métier : 10 personas × 5 objectifs × 5 situations réseau."""
+    """275 scénarios métier : 11 personas × 5 objectifs × 5 situations réseau."""
 
 
 index = 0

@@ -19,7 +19,7 @@ Version consolidée du moteur et de l’interface après validation de la sectio
 | 13 | Conserver les cinq objectifs validés | Intégrée | Visibilité et notoriété, acquisition, expertise et conseil, recrutement, fidélisation |
 | 14 | Autoriser un objectif « Autre » | Intégrée | L’objectif libre est décrit, mais ne classe pas automatiquement les réseaux |
 | 15 | Bloquer un objectif non défini | Intégrée | Les champs SMART restent masqués et le passage à l’étape suivante est impossible |
-| 16 | Simplifier les indicateurs | Intégrée | Sept indicateurs concrets et un indicateur libre |
+| 16 | Simplifier les indicateurs | Intégrée | Onze indicateurs concrets et un indicateur libre, filtrés selon l’objectif |
 | 17 | Ne jamais éliminer le seul réseau observé à cause de l’objectif | Intégrée | L’objectif sert à départager, pas à nier une donnée réelle |
 | 18 | Supprimer les résultats déjà obtenus du moteur | Intégrée | L’ancienne étape « Résultats actuels » est retirée |
 | 19 | Supprimer l’état actif ou inactif du compte du calcul | Intégrée | Aucun statut de compte n’influence la recommandation |
@@ -43,9 +43,15 @@ Version consolidée du moteur et de l’interface après validation de la sectio
 | 37 | Maintenir l’export PDF avec lignes colorées | Intégrée | Les constats de faisabilité sont regroupés par couleur sans colonne d’état |
 | 38 | Réserver les guides aux versions validées | En attente | Les emplacements existent ; les quatre PDF définitifs restent à fournir |
 | 39 | Mettre à jour les textes et la documentation | Intégrée | README, grille de décision et fiche unique alignés avec le code |
-| 40 | Tester la logique par des scénarios métier | Intégrée | 312 tests, dont 275 scénarios persona × objectif × situation réseau |
+| 40 | Tester la logique par des scénarios métier | Intégrée | 321 tests, dont 275 scénarios persona × objectif × situation réseau |
 | 41 | Supprimer l’instruction anglaise des champs de saisie | Intégrée | « Press Enter to apply » est masqué dans toute l’interface |
 | 42 | Uniformiser les menus déroulants | Intégrée | Les listes ouvertes utilisent un fond noir et un texte blanc |
 | 43 | Nommer les quatre plateformes dans la réponse hors périmètre | Intégrée | Facebook, Instagram, TikTok et YouTube sont indiqués directement |
 | 44 | Afficher le logo dans la synthèse | Intégrée | Le nom CAP isolé est remplacé par une version vectorielle du logo |
 | 45 | Supprimer les répétitions du résultat PDF | Intégrée | Le PDF affiche la recommandation, l’élément déterminant et la faisabilité ; le choix du cabinet n’apparaît qu’en cas d’égalité réelle |
+| 46 | Prévoir un responsable non listé | Intégrée | L’option « Autre » ouvre un champ permettant de préciser la personne concernée |
+| 47 | Alléger les données de décision | Intégrée | La ligne redondante « Réseaux connus » est retirée du récapitulatif et du PDF |
+| 48 | Arrêter le diagnostic si le persona n’est pas défini | Intégrée | Seule l’alerte « Finalisez le persona avant de continuer » reste affichée ; les autres questions sont masquées |
+| 49 | Ne pas exposer le fonctionnement interne dans le questionnaire | Intégrée | Le message annonçant l’utilisation de la base de référence est retiré de l’étape cible |
+| 50 | Relier l’indicateur à l’objectif | Intégrée | Chaque objectif affiche uniquement des indicateurs cohérents et le moteur refuse une ancienne combinaison incompatible |
+| 51 | Mettre en valeur les actions dans la synthèse | Intégrée | Les actions sont regroupées dans un encadré gris numéroté 01, 02, 03 |

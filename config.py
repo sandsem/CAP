@@ -46,13 +46,55 @@ OBJECTIVE_OPTIONS = [
 INDICATOR_OPTIONS = [
     "Portée des publications",
     "Visites du profil ou du site",
+    "Interactions avec les publications",
+    "Enregistrements ou partages des contenus",
     "Demandes de contact",
     "Rendez-vous obtenus",
     "Lettres de mission signées",
     "Candidatures reçues",
+    "Entretiens de recrutement obtenus",
+    "Demandes de clients existants",
     "Chiffre d’affaires généré",
     "Autre indicateur",
 ]
+
+# L'indicateur doit mesurer l'objectif choisi. Cette correspondance évite, par
+# exemple, d'utiliser le nombre de candidatures pour évaluer une acquisition de
+# clients.
+INDICATORS_BY_OBJECTIVE = {
+    "Visibilité et notoriété": [
+        "Portée des publications",
+        "Visites du profil ou du site",
+        "Interactions avec les publications",
+        "Enregistrements ou partages des contenus",
+        "Autre indicateur",
+    ],
+    "Acquisition": [
+        "Demandes de contact",
+        "Rendez-vous obtenus",
+        "Lettres de mission signées",
+        "Chiffre d’affaires généré",
+        "Autre indicateur",
+    ],
+    "Expertise et conseil": [
+        "Visites du profil ou du site",
+        "Interactions avec les publications",
+        "Enregistrements ou partages des contenus",
+        "Demandes de contact",
+        "Autre indicateur",
+    ],
+    "Recrutement": [
+        "Candidatures reçues",
+        "Entretiens de recrutement obtenus",
+        "Autre indicateur",
+    ],
+    "Fidélisation": [
+        "Interactions avec les publications",
+        "Demandes de clients existants",
+        "Autre indicateur",
+    ],
+    "Autre": INDICATOR_OPTIONS.copy(),
+}
 
 TIME_OPTIONS = [
     "Aucun temps disponible",
@@ -92,6 +134,7 @@ PILOT_OPTIONS = [
     "Un collaborateur désigné",
     "Une personne ou équipe dédiée à la communication",
     "Un community manager ou prestataire externe",
+    "Autre",
 ]
 
 NO_PILOT = "Personne n’est encore désignée"

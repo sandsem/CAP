@@ -10,6 +10,7 @@ from config import (
     EQUIPMENT_OPTIONS,
     GENERIC_FORMATS,
     INDICATOR_OPTIONS,
+    INDICATORS_BY_OBJECTIVE,
     OBJECTIVE_OPTIONS,
     NO_PILOT,
     OUT_OF_SCOPE_NETWORK,
@@ -233,6 +234,11 @@ def target_page() -> None:
         horizontal=True,
         key="target_persona_status",
     )
+    if persona_status != "Oui":
+        if persona_status == "Non":
+            st.error("Finalisez le persona avant de continuer.")
+        return
+
     saved_profile = (answers.get("q2") or [None])[0]
     profile = st.selectbox(
         "Quel persona souhaitez-vous analyser ?",
@@ -323,7 +329,6 @@ def target_page() -> None:
     elif network_knowledge == UNKNOWN_NETWORK:
         networks = [UNKNOWN_NETWORK]
         preferred_network = UNKNOWN_NETWORK
-        st.info("CAP utilisera sa base de référence pour proposer les plateformes les plus probables pour ce persona.")
     elif network_knowledge == OUT_OF_SCOPE_NETWORK:
         networks = [OUT_OF_SCOPE_NETWORK]
         st.warning("CAP compare uniquement Facebook, Instagram, TikTok et YouTube.")
@@ -393,16 +398,22 @@ def objective_page() -> None:
                 value=answers.get("custom_objective", ""),
                 key="objective_custom",
             )
-        st.caption("Précisez la mesure suivie, le résultat attendu et le délai.")
+        st.caption("Choisissez un indicateur directement lié à l’objectif, puis précisez le résultat attendu et le délai.")
         c1, c2, c3 = st.columns(3)
         with c1:
             saved_indicator = answers.get("indicator")
+            indicator_options = INDICATORS_BY_OBJECTIVE.get(objective, INDICATOR_OPTIONS)
+            saved_indicator_choice = (
+                saved_indicator if saved_indicator in indicator_options
+                else ("Autre indicateur" if saved_indicator else None)
+            )
             indicator_choice = st.selectbox(
                 "Indicateur suivi",
-                INDICATOR_OPTIONS,
-                index=INDICATOR_OPTIONS.index(saved_indicator) if saved_indicator in INDICATOR_OPTIONS else None,
+                indicator_options,
+                index=indicator_options.index(saved_indicator_choice) if saved_indicator_choice in indicator_options else None,
                 placeholder="Choisir un indicateur",
                 key="objective_indicator",
+                help="La liste est adaptée à l’objectif choisi.",
             )
         with c2:
             target = st.text_input(
@@ -421,7 +432,9 @@ def objective_page() -> None:
         if indicator_choice == "Autre indicateur":
             indicator = st.text_input(
                 "Précisez l’indicateur",
-                value=answers.get("custom_indicator", ""),
+                value=answers.get("custom_indicator") or (
+                    saved_indicator if saved_indicator and saved_indicator not in INDICATOR_OPTIONS else ""
+                ),
                 placeholder="Ex. demandes de devis",
                 key="objective_custom_indicator",
             )
@@ -533,6 +546,7 @@ def resources_page() -> None:
         key="resources_has_pilot",
     )
     pilots: list[str] = []
+    custom_pilot = ""
     if has_pilot == "Oui":
         pilots = list(st.multiselect(
             "Qui pilotera la communication ?",
@@ -541,6 +555,12 @@ def resources_page() -> None:
             placeholder="Choisir une ou plusieurs personnes",
             key="resources_pilots",
         ))
+        if "Autre" in pilots:
+            custom_pilot = st.text_input(
+                "Précisez l’autre responsable",
+                value=answers.get("custom_pilot", ""),
+                key="resources_custom_pilot",
+            ).strip()
     elif has_pilot == "Non":
         pilots = [NO_PILOT]
 
@@ -600,6 +620,8 @@ def resources_page() -> None:
             errors.append("Indiquez le matériel disponible.")
         if has_pilot is None or (has_pilot == "Oui" and not pilots):
             errors.append("Indiquez qui pilotera la communication.")
+        if "Autre" in pilots and not custom_pilot:
+            errors.append("Précisez l’autre responsable de la communication.")
         if any(value is None for value in support_confirmed.values()):
             errors.append("Confirmez si chaque solution choisie est réellement prévue.")
         if has_cost is None:
@@ -617,6 +639,7 @@ def resources_page() -> None:
                 "q9": competencies,
                 "q10": equipment,
                 "q11": pilots,
+                "custom_pilot": custom_pilot,
                 "q12": support,
                 "q12_confirmed": support_confirmed,
                 "q13_has_cost": has_cost,
@@ -640,7 +663,6 @@ def review_page() -> None:
     review_card("Votre cible", [
         ("Persona :", persona),
         ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
-        ("Réseaux connus :", join_values(answers.get("q4", []))),
         ("Réseau le plus souvent utilisé :", answers.get("q4_priority") or "Non renseigné"),
         ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Base de référence CAP"),
         ("Informations récentes et fiables :", answers.get("q5_quality") or "Sans objet"),
@@ -668,13 +690,22 @@ def review_page() -> None:
     budget = "Aucune dépense prévue" if answers.get("q13_has_cost") == "Non" else (
         "Budget validé" if answers.get("q13_budget_validated") == "Oui" else "Budget non validé"
     )
+    saved_responsibles = answers.get("q11", [])
+    if isinstance(saved_responsibles, str):
+        saved_responsibles = [saved_responsibles]
+    displayed_responsibles = [
+        (answers.get("custom_pilot") or "Autre responsable non précisé")
+        if responsible == "Autre"
+        else responsible
+        for responsible in saved_responsibles
+    ]
     review_card("Vos moyens", [
         ("Temps :", answers.get("q8", "Non renseigné")),
         ("Formats :", join_values(answers.get("q14", []))),
         ("Présence à l’écran :", answers.get("q16", "Sans objet")),
         ("Compétences :", skill_summary or "Non renseigné"),
         ("Matériel :", join_values(answers.get("q10", []))),
-        ("Responsable(s) :", join_values(answers.get("q11", [])) if isinstance(answers.get("q11"), list) else answers.get("q11", "Non renseigné")),
+        ("Responsable(s) :", join_values(displayed_responsibles)),
         ("Solutions :", support_summary or "Sans objet"),
         ("Budget :", budget),
     ])
