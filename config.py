@@ -1,4 +1,8 @@
 PLATFORM_NAMES = ["Facebook", "Instagram", "TikTok", "YouTube"]
+REFERENCE_BASE_DATE = "31 juillet 2026"
+
+UNKNOWN_NETWORK = "Je ne sais pas"
+OUT_OF_SCOPE_NETWORK = "Aucun de ces quatre réseaux"
 
 PROFILE_OPTIONS = [
     "Créateur d’entreprise",
@@ -9,19 +13,12 @@ PROFILE_OPTIONS = [
     "Profession libérale / Freelance",
     "Association / Secteur non-marchand",
     "Jeune talent / étudiant",
-    "Particulier / Gestion de patrimoine",
+    "Jeune particulier / premier projet patrimonial",
+    "Particulier / retraite ou transmission patrimoniale",
     "Autre",
-    "Non identifié",
 ]
 
-TARGET_NETWORK_OPTIONS = [
-    "Facebook",
-    "Instagram",
-    "TikTok",
-    "YouTube",
-    "Autre réseau",
-    "Non identifié",
-]
+TARGET_NETWORK_OPTIONS = PLATFORM_NAMES + [UNKNOWN_NETWORK, OUT_OF_SCOPE_NETWORK]
 
 SOURCE_OPTIONS = [
     "Expérience terrain",
@@ -34,79 +31,28 @@ SOURCE_OPTIONS = [
     "Aucune source",
 ]
 
-EVIDENCE_QUALITY_OPTIONS = [
-    "Récentes et fiables",
-    "Partiellement vérifiées",
-    "Anciennes ou non vérifiées",
-]
+EVIDENCE_QUALITY_OPTIONS = ["Oui", "Non"]
 
 OBJECTIVE_OPTIONS = [
-    "Visibilité / notoriété",
+    "Visibilité et notoriété",
     "Acquisition",
-    "Expertise / conseil",
+    "Expertise et conseil",
     "Recrutement",
     "Fidélisation",
     "Autre",
     "Non défini",
 ]
 
-INDICATOR_OPTIONS = {
-    "Visibilité / notoriété": [
-        "Portée",
-        "Impressions",
-        "Vues",
-        "Visites du profil",
-        "Nouveaux abonnés",
-        "Autre indicateur",
-    ],
-    "Acquisition": [
-        "Prises de contact qualifiées",
-        "Rendez-vous obtenus",
-        "Lettres de mission signées",
-        "Chiffre d’affaires généré",
-        "Autre indicateur",
-    ],
-    "Expertise / conseil": [
-        "Enregistrements",
-        "Partages",
-        "Temps de visionnage",
-        "Demandes de conseil",
-        "Autre indicateur",
-    ],
-    "Recrutement": [
-        "Candidatures reçues",
-        "Candidatures qualifiées",
-        "Entretiens obtenus",
-        "Recrutements finalisés",
-        "Autre indicateur",
-    ],
-    "Fidélisation": [
-        "Interactions clients",
-        "Questions reçues",
-        "Missions complémentaires",
-        "Taux de rétention",
-        "Autre indicateur",
-    ],
-    "Autre": ["Autre indicateur"],
-}
-
-DISCOVERY_MODE_OPTIONS = [
-    "Recherche volontaire d’une réponse",
-    "Échanges dans une communauté ou un groupe local",
-    "Découverte visuelle en suivant des comptes",
-    "Recommandation de contenus selon les centres d’intérêt",
-    "Non identifié",
+INDICATOR_OPTIONS = [
+    "Portée des publications",
+    "Visites du profil ou du site",
+    "Demandes de contact",
+    "Rendez-vous obtenus",
+    "Lettres de mission signées",
+    "Candidatures reçues",
+    "Chiffre d’affaires généré",
+    "Autre indicateur",
 ]
-
-PLATFORM_RESULT_OPTIONS = [
-    "Aucun résultat identifié",
-    "Audience cible engagée",
-    "Contacts obtenus",
-]
-
-# Compatibilité avec une ancienne version d’app.py pendant un déploiement.
-# Le contenu reste celui de la nouvelle logique : aucun statut de compte.
-PLATFORM_STATUS_OPTIONS = PLATFORM_RESULT_OPTIONS
 
 TIME_OPTIONS = [
     "Aucun temps disponible",
@@ -114,16 +60,25 @@ TIME_OPTIONS = [
     "2 à 5 h",
     "6 à 10 h",
     "Plus de 10 h",
-    "Non évalué",
 ]
 
 COMPETENCY_LEVELS = ["À acquérir", "Notions", "Autonome"]
+
+GENERIC_FORMATS = [
+    "Publication texte",
+    "Photo",
+    "Carrousel",
+    "Vidéo courte",
+    "Vidéo longue",
+    "Story",
+    "Live",
+]
 
 EQUIPMENT_OPTIONS = [
     "Smartphone récent",
     "Caméra",
     "Ordinateur",
-    "Connexion stable",
+    "Connexion internet stable",
     "Micro",
     "Ring light",
     "Studio équipé",
@@ -132,145 +87,76 @@ EQUIPMENT_OPTIONS = [
 ]
 
 PILOT_OPTIONS = [
-    "Expert-comptable",
-    "Associé",
-    "Expert et associé",
-    "Collaborateur référent",
-    "Prestataire externe",
-    "Service communication",
-    "Non défini",
+    "L’expert-comptable",
+    "Un associé",
+    "Un collaborateur désigné",
+    "Une personne ou équipe dédiée à la communication",
+    "Un community manager ou prestataire externe",
+    "Personne n’est encore désignée",
 ]
 
 APP_SUPPORT_OPTIONS = [
     "Autoformation",
     "Formation",
-    "Aide interne",
-    "Prestataire",
-    "Autre solution",
-    "Solution à trouver",
+    "Appui interne",
+    "Prestataire externe",
 ]
 
-BUDGET_OPTIONS = [
-    "Aucune dépense nécessaire",
-    "Oui",
-    "À vérifier",
-    "Non",
-]
+SUPPORT_CONFIRMATION_LABELS = {
+    "Autoformation": "Cette autoformation est-elle planifiée ?",
+    "Formation": "Cette formation est-elle choisie ou planifiée ?",
+    "Appui interne": "La personne qui apportera cet appui est-elle identifiée et disponible ?",
+    "Prestataire externe": "Le prestataire est-il choisi et disponible ?",
+}
 
-# Cette grille décrit les différences de fonctionnement des plateformes.
-# Elle ne contient ni note sur 100, ni pondération, ni hypothèse liée à l’âge
-# ou au métier du persona. Le profil sert à décrire la cible ; son comportement
-# réel sert à comparer les réseaux qu’elle utilise.
-PLATFORM_REFERENCE = {
-    "Facebook": {
-        "discovery_modes": {"Échanges dans une communauté ou un groupe local"},
-        "objectives": {
-            "Visibilité / notoriété",
-            "Acquisition",
-            "Fidélisation",
-        },
-    },
-    "Instagram": {
-        "discovery_modes": {"Découverte visuelle en suivant des comptes"},
-        "objectives": {
-            "Visibilité / notoriété",
-            "Acquisition",
-            "Recrutement",
-            "Fidélisation",
-        },
-    },
-    "TikTok": {
-        "discovery_modes": {
-            "Recommandation de contenus selon les centres d’intérêt"
-        },
-        "objectives": {
-            "Visibilité / notoriété",
-            "Acquisition",
-            "Recrutement",
-        },
-    },
-    "YouTube": {
-        "discovery_modes": {
-            "Recherche volontaire d’une réponse",
-            "Recommandation de contenus selon les centres d’intérêt",
-        },
-        "objectives": {
-            "Visibilité / notoriété",
-            "Acquisition",
-            "Expertise / conseil",
-        },
-    },
+# Base de référence utilisée uniquement lorsque le cabinet ne connaît pas encore
+# les réseaux réellement utilisés par son persona. Elle doit être datée et revue
+# périodiquement dans la documentation de l'outil.
+PERSONA_PLATFORM_REFERENCE = {
+    "Créateur d’entreprise": ["YouTube", "Instagram", "TikTok"],
+    "Micro-entrepreneur": ["Instagram", "Facebook", "TikTok"],
+    "Artisan / commerçant / restaurateur": ["Facebook", "Instagram", "TikTok"],
+    "Dirigeant TPE-PME": ["YouTube", "Facebook", "Instagram"],
+    "Start-up": ["Instagram", "TikTok", "YouTube"],
+    "Profession libérale / Freelance": ["Instagram", "YouTube", "TikTok"],
+    "Association / Secteur non-marchand": ["Facebook", "Instagram", "YouTube"],
+    "Jeune talent / étudiant": ["TikTok", "Instagram", "YouTube"],
+    "Jeune particulier / premier projet patrimonial": ["TikTok", "Instagram", "YouTube"],
+    "Particulier / retraite ou transmission patrimoniale": ["YouTube", "Facebook", "Instagram"],
+    # Pour un persona libre, l'outil ne suppose pas une audience qu'il ne connaît pas.
+    "Autre": PLATFORM_NAMES.copy(),
+}
+
+# Une priorité ne signifie jamais que les autres plateformes sont incapables de
+# servir l'objectif. Elle sert uniquement à départager plusieurs réseaux possibles.
+OBJECTIVE_PRIORITY_PLATFORMS = {
+    "Visibilité et notoriété": {"Instagram", "TikTok"},
+    "Acquisition": set(PLATFORM_NAMES),
+    "Expertise et conseil": {"YouTube"},
+    "Recrutement": {"Instagram", "TikTok"},
+    "Fidélisation": {"Facebook", "Instagram"},
+    "Autre": set(),
 }
 
 PLATFORM_FORMATS = {
-    "Facebook": [
-        "Publication texte",
-        "Photo / visuel",
-        "Carrousel",
-        "Reel / vidéo courte",
-        "Story",
-        "Live",
-    ],
-    "Instagram": [
-        "Photo",
-        "Carrousel",
-        "Reel",
-        "Story",
-        "Live",
-    ],
-    "TikTok": [
-        "Vidéo",
-        "Publication photo / carrousel",
-        "Story",
-        "Live",
-    ],
-    "YouTube": [
-        "Vidéo longue",
-        "Short",
-        "Live",
-        "Publication Communauté",
-    ],
+    "Facebook": {
+        "Publication texte", "Photo", "Carrousel", "Vidéo courte",
+        "Vidéo longue", "Story", "Live",
+    },
+    "Instagram": {"Photo", "Carrousel", "Vidéo courte", "Story", "Live"},
+    "TikTok": {"Photo", "Carrousel", "Vidéo courte", "Vidéo longue", "Story", "Live"},
+    "YouTube": {"Publication texte", "Photo", "Vidéo courte", "Vidéo longue", "Live"},
 }
 
 FORMAT_REQUIRED_SKILLS = {
     "Publication texte": {"Rédaction / script"},
-    "Photo / visuel": {"Rédaction / script", "Création de visuels"},
-    "Photo": {"Rédaction / script", "Création de visuels"},
+    "Photo": {"Création de visuels"},
     "Carrousel": {"Rédaction / script", "Création de visuels"},
-    "Publication photo / carrousel": {
-        "Rédaction / script",
-        "Création de visuels",
-    },
-    "Publication Communauté": {
-        "Rédaction / script",
-        "Création de visuels",
-    },
-    "Reel / vidéo courte": {"Rédaction / script", "Montage vidéo"},
-    "Reel": {"Rédaction / script", "Montage vidéo"},
-    "Vidéo": {"Rédaction / script", "Montage vidéo"},
-    "Vidéo longue": {
-        "Rédaction / script",
-        "Montage vidéo",
-    },
-    "Short": {"Rédaction / script", "Montage vidéo"},
+    "Vidéo courte": {"Rédaction / script", "Montage vidéo"},
+    "Vidéo longue": {"Rédaction / script", "Montage vidéo"},
     "Story": {"Rédaction / script", "Création de visuels"},
     "Live": {"Rédaction / script", "Aisance face caméra"},
 }
 
-VIDEO_FORMATS = {
-    "Reel / vidéo courte",
-    "Reel",
-    "Vidéo",
-    "Vidéo longue",
-    "Short",
-    "Live",
-}
-
-VISUAL_FORMATS = {
-    "Photo / visuel",
-    "Photo",
-    "Carrousel",
-    "Publication photo / carrousel",
-    "Publication Communauté",
-    "Story",
-}
+VIDEO_FORMATS = {"Vidéo courte", "Vidéo longue", "Live"}
+VISUAL_FORMATS = {"Photo", "Carrousel", "Story"}

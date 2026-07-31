@@ -5,79 +5,72 @@ aux experts-comptables qui créent leur cabinet ex nihilo.
 
 ## Parcours
 
-Le diagnostic suit quatre étapes :
+Le diagnostic suit trois étapes :
 
-1. analyser un persona, son besoin et la manière dont il recherche l’information ;
-2. formaliser l’objectif du cabinet ;
-3. indiquer, si nécessaire, les résultats déjà obtenus auprès de ce persona ;
-4. vérifier les formats, les compétences et les moyens mobilisables.
+1. analyser un seul persona, son besoin prioritaire et les réseaux qu’il utilise ;
+2. définir l’objectif chiffré du cabinet ;
+3. vérifier les formats, les compétences et les moyens mobilisables.
 
-Seuls les réseaux réellement utilisés par la cible pour rechercher
-l’information liée à son besoin sont comparés.
+Un cabinet qui vise plusieurs personas réalise un diagnostic séparé pour
+chacun. Le besoin prioritaire précise le sujet des futurs contenus ; il ne
+classe pas automatiquement les plateformes.
 
-Un diagnostic porte sur un seul persona. Si le cabinet souhaite étudier
-plusieurs publics, il recommence le diagnostic pour chacun. La catégorie du
-persona ne donne aucun avantage automatique à une plateforme.
+## Moteur de recommandation
 
-## Règle de recommandation
+Lorsque le cabinet connaît les réseaux utilisés par le persona, cette
+observation réelle est prioritaire. Elle doit être appuyée par au moins une
+source et déclarée récente et fiable. Si plusieurs réseaux sont connus, le
+réseau utilisé le plus souvent est retenu lorsqu’il a été identifié.
 
-CAP compare Facebook, Instagram, TikTok et YouTube à partir de deux conditions
-obligatoires :
+Lorsque le cabinet ne connaît pas ces réseaux, CAP utilise une base de
+référence associant chaque catégorie de persona à plusieurs plateformes
+probables. Cette base est datée du 31 juillet 2026 et doit être revue
+périodiquement.
 
-- la manière dont le persona recherche concrètement l’information sur chaque réseau ;
-- la capacité de la plateforme à contribuer à l’objectif du cabinet.
+L’objectif sert ensuite à départager plusieurs plateformes possibles. Il ne
+peut jamais éliminer le seul réseau réellement observé auprès du persona.
+CAP n’utilise ni note sur 100, ni pondération, ni mode d’usage exclusif attribué
+à une plateforme.
 
-L’usage est renseigné séparément pour chaque plateforme sélectionnée. Le moteur
-ne compte pas des correspondances : si une condition manque, la plateforme
-n’est pas compatible.
+Si plusieurs plateformes restent au même niveau, les moyens du cabinet peuvent
+les départager. Si l’égalité demeure, CAP recommande toutes les plateformes
+équivalentes. Le cabinet en retient ensuite une pour le lancement. La synthèse
+distingue clairement la recommandation de CAP du choix final du cabinet.
 
-Le profil générique du persona et le temps disponible ne donnent aucun point à
-une plateforme. Aucun score sur 100 ni aucune pondération ne sont utilisés.
+Les résultats déjà obtenus et l’état actif ou inactif d’un compte n’entrent pas
+dans le moteur de recommandation.
 
-Si plusieurs plateformes restent compatibles, CAP examine successivement :
+## Faisabilité
 
-1. un résultat déjà obtenu auprès du persona analysé pour le besoin étudié ;
-2. une plateforme retenue pour une période d’observation si aucun élément
-   objectif ne permet encore de trancher.
+Les moyens ne remplacent jamais une plateforme stratégiquement supérieure. Ils
+interviennent seulement après la comparaison stratégique ou pour départager une
+égalité.
 
-L’existence d’un compte actif, inactif ou absent ne modifie jamais ce choix.
-Elle indique seulement, après la recommandation, s’il faut continuer à utiliser
-un compte, le réactiver ou en créer un.
+La faisabilité porte sur cinq éléments :
 
-Si aucune plateforme ne remplit les deux conditions, CAP affiche
-`Aucune plateforme compatible` au lieu de forcer une recommandation.
+- le temps disponible ;
+- les formats et les compétences ;
+- le matériel ;
+- le responsable ;
+- le budget.
 
-## Contrôles
+Une ligne verte est prête. Une ligne orange impose une préparation. Une ligne
+rouge reporte le lancement sans changer la plateforme recommandée.
 
-Les données stratégiques conduisent à l’un des résultats suivants :
+Une compétence manquante ne bloque pas le diagnostic. Une autoformation, une
+formation, un appui interne ou un prestataire peut être prévu. Un smartphone
+peut suffire pour débuter ; une caméra ou une ring light ne sont pas rendues
+artificiellement obligatoires.
 
-- `Choix validé` ;
-- `Projet à revoir` ;
-- `Recommandation impossible`.
+## Interface et synthèse
 
-Une plateforme n’est affichée que lorsque le contrôle stratégique aboutit à
-`Choix validé`. Un projet à revoir doit d’abord être corrigé, puis analysé à
-nouveau.
+Les questions sur les moyens restent neutres et ne révèlent pas la plateforme
+avant le résultat. Le récapitulatif ne comporte pas de bouton « Précédent ».
+L’écran final reste épuré ; les motifs, les constats et les actions figurent
+dans la synthèse PDF.
 
-Les moyens du cabinet font l’objet d’un contrôle séparé. Chaque élément reçoit
-un état vert, orange ou rouge. Une seule alerte rouge reporte le lancement. Une
-alerte orange impose l’action indiquée. Toutes les lignes doivent être vertes
-pour afficher `Projet prêt`.
-
-Les moyens ne modifient jamais la cohérence stratégique de la plateforme.
-Le contrôle porte sur le temps, les formats et compétences, le matériel, le
-responsable et le budget. Il n’utilise aucun pourcentage de faisabilité.
-
-L’aisance face caméra est demandée pour un Live. Pour une vidéo enregistrée,
-elle est contrôlée seulement si une personne apparaît à l’écran.
-
-## Guides de plateforme
-
-Les guides Facebook, Instagram, TikTok et YouTube ne sont pas intégrés dans
-cette version. L’application conserve uniquement l’emplacement destiné à leur
-ajout. Ils seront intégrés à partir des guides validés dans le chapitre suivant.
-
-La synthèse du diagnostic peut être téléchargée au format PDF.
+Les guides Facebook, Instagram, TikTok et YouTube seront ajoutés dans le dossier
+`guides` après leur validation.
 
 ## Lancement local
 
@@ -86,14 +79,12 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Les réponses restent dans la session Streamlit et ne sont pas enregistrées par
-l’application.
-
 ## Tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-La suite comprend 254 tests, dont une matrice de 216 scénarios croisant les
-données stratégiques et les moyens du cabinet.
+La suite comprend 306 tests : 275 scénarios de décision croisant les personas,
+les objectifs et les situations réseau, ainsi que des tests du moteur, de la
+faisabilité, de l’interface et de l’export PDF.

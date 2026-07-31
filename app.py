@@ -1,38 +1,28 @@
-from pathlib import Path
 from html import escape
+from pathlib import Path
 
 import streamlit as st
 
 from config import (
     APP_SUPPORT_OPTIONS,
-    BUDGET_OPTIONS,
     COMPETENCY_LEVELS,
-    DISCOVERY_MODE_OPTIONS,
     EVIDENCE_QUALITY_OPTIONS,
     EQUIPMENT_OPTIONS,
+    GENERIC_FORMATS,
     INDICATOR_OPTIONS,
     OBJECTIVE_OPTIONS,
+    OUT_OF_SCOPE_NETWORK,
     PILOT_OPTIONS,
-    PLATFORM_FORMATS,
     PLATFORM_NAMES,
     PROFILE_OPTIONS,
     SOURCE_OPTIONS,
-    TARGET_NETWORK_OPTIONS,
+    SUPPORT_CONFIRMATION_LABELS,
     TIME_OPTIONS,
+    UNKNOWN_NETWORK,
+    VIDEO_FORMATS,
 )
-
-try:
-    from config import PLATFORM_RESULT_OPTIONS
-except ImportError:
-    # Permet à l’application de rester disponible si app.py est déployé avant
-    # config.py. Les statuts de compte ne sont volontairement pas repris.
-    PLATFORM_RESULT_OPTIONS = [
-        "Aucun résultat identifié",
-        "Audience cible engagée",
-        "Contacts obtenus",
-    ]
 from pdf_export import build_summary_pdf
-from scoring import compare_platforms, evaluate, required_skills_for_formats
+from scoring import evaluate, required_skills_for_formats
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -50,389 +40,37 @@ def inject_css() -> None:
     st.markdown(
         """
         <style>
-        :root {
-            --cap-black: #111111;
-            --cap-charcoal: #1B1B1B;
-            --cap-muted: #6B7280;
-            --cap-line: #E6E7E9;
-            --cap-soft: #F7F8F8;
-            --cap-green: #111111;
-            --primary-color: #111111;
-        }
-
-        header[data-testid="stHeader"],
-        [data-testid="collapsedControl"],
-        [data-testid="stToolbar"],
-        [data-testid="stAppDeployButton"],
-        .stDeployButton,
-        footer {
-            display: none;
-        }
-
-        .stApp {
-            background: #FFFFFF;
-            color: var(--cap-black);
-        }
-
-        .block-container {
-            max-width: 860px;
-            padding-top: 2.2rem;
-            padding-bottom: 3.5rem;
-        }
-
-        h1, h2, h3, p, label, div {
-            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,
-                         "Segoe UI", sans-serif;
-        }
-
-        h1 {
-            letter-spacing: -0.045em;
-            font-size: clamp(2.25rem, 6vw, 4.2rem) !important;
-            line-height: 1.02 !important;
-            font-weight: 720 !important;
-        }
-
-        h2 {
-            letter-spacing: -0.035em;
-            font-size: clamp(1.65rem, 4vw, 2.55rem) !important;
-            line-height: 1.12 !important;
-        }
-
-        h3 {
-            letter-spacing: -0.02em;
-        }
-
-        .cap-logo {
-            width: 76px;
-            margin: 0 auto 1.35rem auto;
-        }
-
-        .cap-center {
-            text-align: center;
-        }
-
-        .cap-lead {
-            color: #36393D;
-            font-size: 1.12rem;
-            line-height: 1.55;
-            margin: 0.8rem auto 1.8rem auto;
-            max-width: 570px;
-        }
-
-        .cap-eyebrow {
-            color: var(--cap-muted);
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            margin-bottom: 0.65rem;
-        }
-
-        .cap-stepbar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin: 1.2rem 0 2.2rem 0;
-        }
-
-        .cap-step {
-            height: 4px;
-            border-radius: 100px;
-            background: #E5E7EB;
-        }
-
-        .cap-step.active {
-            background: var(--cap-black);
-        }
-
-        .cap-question {
-            color: var(--cap-muted);
-            font-size: 0.93rem;
-            margin-top: -0.35rem;
-            margin-bottom: 1.1rem;
-        }
-
-        .cap-card {
-            border: 1px solid var(--cap-line);
-            border-radius: 18px;
-            padding: 1.15rem 1.25rem;
-            background: #FFFFFF;
-            height: 100%;
-        }
-
-        .cap-card-label {
-            color: var(--cap-muted);
-            font-size: 0.82rem;
-            margin-bottom: 0.35rem;
-        }
-
-        .cap-card-value {
-            font-size: 1.08rem;
-            font-weight: 680;
-        }
-
-        .cap-card-purpose {
-            color: var(--cap-muted);
-            font-size: 0.82rem;
-            line-height: 1.5;
-            margin-top: 0.55rem;
-        }
-
-        .cap-recommendation {
-            border-top: 1px solid var(--cap-line);
-            border-bottom: 1px solid var(--cap-line);
-            padding: 1.35rem 0;
-            margin: 1.25rem 0 1.3rem 0;
-        }
-
-        .cap-platform {
-            font-size: clamp(2.15rem, 7vw, 4rem);
-            font-weight: 760;
-            letter-spacing: -0.055em;
-            line-height: 1;
-        }
-
-        .cap-score {
-            color: var(--cap-green);
-            font-size: 1.05rem;
-            font-weight: 680;
-            margin-top: 0.55rem;
-        }
-
-        .cap-note {
-            color: var(--cap-muted);
-            font-size: 0.84rem;
-            line-height: 1.5;
-        }
-
-        .cap-launch-box {
-            border: 1px solid var(--cap-black);
-            border-radius: 20px;
-            background: var(--cap-soft);
-            margin: 1.65rem 0 0.7rem 0;
-            padding: 1.35rem 1.45rem 0.45rem 1.45rem;
-        }
-
-        .cap-result-box {
-            border: 1px solid #D9DCDD;
-            border-radius: 20px;
-            background: var(--cap-soft);
-            margin: 1rem 0 1.1rem 0;
-            padding: 1.55rem 1.55rem 1.45rem 1.55rem;
-            text-align: center;
-        }
-
-        .cap-result-title {
-            color: var(--cap-black);
-            font-size: clamp(1.75rem, 5vw, 2.8rem);
-            font-weight: 760;
-            letter-spacing: -0.04em;
-            line-height: 1.08;
-            margin-bottom: 0.65rem;
-        }
-
-        .cap-result-text {
-            color: #3F4246;
-            font-size: 1rem;
-            line-height: 1.55;
-        }
-
-        .cap-launch-kicker {
-            color: var(--cap-muted);
-            font-size: 0.72rem;
-            font-weight: 750;
-            letter-spacing: 0.13em;
-            text-transform: uppercase;
-            margin-bottom: 0.35rem;
-        }
-
-        .cap-launch-title {
-            color: var(--cap-black);
-            font-size: 1.35rem;
-            font-weight: 740;
-            letter-spacing: -0.025em;
-            margin-bottom: 0.35rem;
-        }
-
-        .cap-launch-intro {
-            color: #45484C;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            margin-bottom: 0.75rem;
-        }
-
-        .cap-action {
-            display: grid;
-            grid-template-columns: 2rem 1fr;
-            gap: 0.65rem;
-            align-items: start;
-            border-top: 1px solid #D9DCDD;
-            padding: 0.85rem 0;
-        }
-
-        .cap-action-number {
-            color: var(--cap-muted);
-            font-size: 0.74rem;
-            font-weight: 750;
-            letter-spacing: 0.08em;
-            padding-top: 0.12rem;
-        }
-
-        .cap-action-text {
-            color: var(--cap-black);
-            font-size: 0.9rem;
-            line-height: 1.48;
-        }
-
-        .cap-nav-spacer {
-            height: clamp(3rem, 8vh, 6rem);
-        }
-
-        .cap-review-card {
-            border: 1px solid var(--cap-line);
-            border-radius: 16px;
-            padding: 1rem 1.15rem;
-            margin-bottom: 0.75rem;
-            background: #FFFFFF;
-        }
-
-        .cap-review-title {
-            font-size: 1.05rem;
-            font-weight: 720;
-            margin-bottom: 0.55rem;
-        }
-
-        .cap-review-line {
-            color: #36393D;
-            font-size: 0.92rem;
-            line-height: 1.55;
-        }
-
-        .cap-review-line strong {
-            color: var(--cap-black);
-        }
-
-        .stButton > button,
-        .stDownloadButton > button,
-        button[kind="primary"],
-        button[kind="secondary"],
-        [data-testid="stBaseButton-primary"],
-        [data-testid="stBaseButton-secondary"] {
-            min-height: 46px;
-            border-radius: 10px;
-            font-weight: 650;
-            transition: none;
-        }
-
-        button[kind="primary"],
-        .stDownloadButton > button,
-        [data-testid="stBaseButton-primary"] {
-            background: var(--cap-black) !important;
-            color: #FFFFFF !important;
-            border: 1px solid var(--cap-black) !important;
-        }
-
-        button[kind="secondary"],
-        [data-testid="stBaseButton-secondary"] {
-            background: #FFFFFF !important;
-            color: var(--cap-black) !important;
-            border: 1px solid #D8DADD !important;
-        }
-
-        .stButton > button:hover,
-        .stDownloadButton > button:hover {
-            border-color: var(--cap-black) !important;
-        }
-
-        div[data-baseweb="select"] > div {
-            background: var(--cap-charcoal) !important;
-            border-color: var(--cap-charcoal) !important;
-            color: #FFFFFF !important;
-            border-radius: 10px;
-        }
-
-        div[data-baseweb="select"] *,
-        div[data-baseweb="input"] input {
-            color: #FFFFFF !important;
-        }
-
-        div[data-baseweb="input"] {
-            background: var(--cap-charcoal) !important;
-            border-color: var(--cap-charcoal) !important;
-        }
-
-        div[data-baseweb="input"] input::placeholder {
-            color: #C9CDD2 !important;
-            opacity: 1;
-        }
-
-        div[role="listbox"],
-        ul[role="listbox"],
-        div[role="option"],
-        li[role="option"] {
-            background: var(--cap-charcoal) !important;
-            color: #FFFFFF !important;
-        }
-
-        div[role="option"]:hover,
-        li[role="option"]:hover,
-        div[aria-selected="true"] {
-            background: #303030 !important;
-            color: #FFFFFF !important;
-        }
-
-        [data-testid="stPills"] button {
-            background: #FFFFFF !important;
-            color: var(--cap-black) !important;
-            border: 1px solid #C9CDD2 !important;
-        }
-
-        [data-testid="stPills"] button[aria-pressed="true"] {
-            background: var(--cap-black) !important;
-            color: #FFFFFF !important;
-            border-color: var(--cap-black) !important;
-        }
-
-        [data-testid="stRadio"] [aria-checked="true"] > div:first-child {
-            background: var(--cap-black) !important;
-            border-color: var(--cap-black) !important;
-        }
-
-        div[role="radiogroup"] {
-            border-radius: 10px;
-        }
-
-        div[data-testid="stAlert"] {
-            border-radius: 12px;
-        }
-
-        [data-testid="InputInstructions"],
-        [data-testid="stTextInput"] > span:last-child {
-            display: none !important;
-        }
-
-        [data-testid="stForm"] {
-            border: 0;
-            padding: 0;
-        }
-
-        @media (max-width: 640px) {
-            .block-container {
-                padding: 1.3rem 1rem 2.5rem 1rem;
-            }
-
-            .cap-logo {
-                width: 64px;
-            }
-
-            .cap-card {
-                margin-bottom: 0.65rem;
-            }
-
-            .cap-nav-spacer {
-                height: 2.5rem;
-            }
-        }
+        :root { --black:#111; --muted:#6B7280; --line:#E3E5E7; --soft:#F7F8F8; }
+        header[data-testid="stHeader"], [data-testid="collapsedControl"],
+        [data-testid="stToolbar"], [data-testid="stAppDeployButton"], footer { display:none; }
+        .stApp { background:#fff; color:var(--black); }
+        .block-container { max-width:860px; padding-top:2.2rem; padding-bottom:3.5rem; }
+        h1,h2,h3,p,label,div { font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+        h1 { letter-spacing:-.045em; font-size:clamp(2.25rem,6vw,4.2rem)!important; line-height:1.02!important; }
+        h2 { letter-spacing:-.035em; font-size:clamp(1.65rem,4vw,2.55rem)!important; }
+        .cap-center { text-align:center; }
+        .cap-lead { color:#3d4044; font-size:1.1rem; line-height:1.55; margin:.8rem auto 1.8rem; max-width:620px; }
+        .cap-eyebrow { color:var(--muted); font-size:.78rem; font-weight:750; letter-spacing:.12em; text-transform:uppercase; margin-bottom:.65rem; }
+        .cap-question { color:var(--muted); font-size:.93rem; margin-top:-.35rem; margin-bottom:1.1rem; }
+        .cap-stepbar { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:1.2rem 0 2.2rem; }
+        .cap-step { height:4px; border-radius:99px; background:#E5E7EB; }
+        .cap-step.active { background:var(--black); }
+        .cap-nav-spacer { height:clamp(2.5rem,7vh,5rem); }
+        .cap-review-card { border:1px solid var(--line); border-radius:16px; padding:1rem 1.15rem; margin-bottom:.75rem; background:#fff; }
+        .cap-review-title { font-size:1.05rem; font-weight:720; margin-bottom:.55rem; }
+        .cap-review-line { color:#36393D; font-size:.92rem; line-height:1.55; }
+        .cap-result-box { border:1px solid #D9DCDD; border-radius:20px; background:var(--soft); margin:1rem 0 1.25rem; padding:1.7rem; text-align:center; }
+        .cap-result-title { font-size:clamp(1.75rem,5vw,2.8rem); font-weight:760; letter-spacing:-.04em; line-height:1.08; margin-bottom:.65rem; }
+        .cap-result-text { color:#3F4246; font-size:1rem; line-height:1.55; }
+        .cap-note { color:var(--muted); font-size:.84rem; line-height:1.5; }
+        .stButton>button,.stDownloadButton>button { min-height:46px; border-radius:10px; font-weight:650; }
+        button[kind="primary"],.stDownloadButton>button { background:var(--black)!important; color:#fff!important; border:1px solid var(--black)!important; }
+        button[kind="secondary"] { background:#fff!important; color:var(--black)!important; border:1px solid #D8DADD!important; }
+        [data-testid="stPills"] button { background:#fff!important; color:var(--black)!important; border:1px solid #C9CDD2!important; }
+        [data-testid="stPills"] button[aria-pressed="true"] { background:var(--black)!important; color:#fff!important; border-color:var(--black)!important; }
+        [data-testid="stRadio"] [aria-checked="true"]>div:first-child { background:var(--black)!important; border-color:var(--black)!important; }
+        div[data-testid="stAlert"] { border-radius:12px; }
+        @media(max-width:640px){ .block-container{padding:1.3rem 1rem 2.5rem}.cap-nav-spacer{height:2rem} }
         </style>
         """,
         unsafe_allow_html=True,
@@ -440,13 +78,12 @@ def inject_css() -> None:
 
 
 def init_state() -> None:
-    defaults = {
+    for key, value in {
         "screen": "home",
         "answers": {},
         "result": None,
         "return_to_review": False,
-    }
-    for key, value in defaults.items():
+    }.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -455,7 +92,7 @@ def logo(center: bool = False) -> None:
     if not LOGO_PATH.exists():
         return
     if center:
-        left, middle, right = st.columns([1, 0.28, 1])
+        left, middle, right = st.columns([1, .28, 1])
         with middle:
             st.image(str(LOGO_PATH), width="stretch")
     else:
@@ -464,10 +101,10 @@ def logo(center: bool = False) -> None:
 
 def step_header(step: int, title: str, subtitle: str = "") -> None:
     logo()
-    st.markdown(f'<div class="cap-eyebrow">Étape {step} sur 4</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cap-eyebrow">Étape {step} sur 3</div>', unsafe_allow_html=True)
     bars = "".join(
         f'<div class="cap-step{" active" if index <= step else ""}"></div>'
-        for index in range(1, 5)
+        for index in range(1, 4)
     )
     st.markdown(f'<div class="cap-stepbar">{bars}</div>', unsafe_allow_html=True)
     st.header(title)
@@ -481,16 +118,8 @@ def navigate(screen: str) -> None:
 
 
 def reset_diagnostic() -> None:
-    widget_prefixes = (
-        "target_",
-        "objective_",
-        "indicator_choice_",
-        "status_",
-        "resources_",
-        "skill_",
-    )
     for key in list(st.session_state):
-        if key.startswith(widget_prefixes):
+        if key.startswith(("target_", "objective_", "resources_", "skill_", "support_")):
             del st.session_state[key]
     st.session_state.answers = {}
     st.session_state.result = None
@@ -502,19 +131,9 @@ def render_nav(previous: str, continue_label: str = "Continuer") -> tuple[bool, 
     st.markdown('<div class="cap-nav-spacer"></div>', unsafe_allow_html=True)
     left, spacer, right = st.columns([1.2, 2.2, 1.4])
     with left:
-        back = st.button(
-            "Précédent",
-            type="secondary",
-            width="stretch",
-            key=f"back_to_{previous}_{st.session_state.screen}",
-        )
+        back = st.button("Précédent", type="secondary", width="stretch", key=f"back_{st.session_state.screen}")
     with right:
-        forward = st.button(
-            continue_label,
-            type="primary",
-            width="stretch",
-            key=f"forward_from_{st.session_state.screen}",
-        )
+        forward = st.button(continue_label, type="primary", width="stretch", key=f"next_{st.session_state.screen}")
     return back, forward
 
 
@@ -526,19 +145,12 @@ def next_screen(default: str) -> None:
     navigate(default)
 
 
-def select_many(
-    label: str,
-    options: list[str],
-    default: list[str],
-    key: str,
-    help_text: str | None = None,
-) -> list[str]:
-    valid_default = [value for value in default if value in options]
+def select_many(label: str, options: list[str], default: list[str], key: str, help_text: str | None = None) -> list[str]:
     selected = st.pills(
         label,
         options,
         selection_mode="multi",
-        default=valid_default,
+        default=[item for item in default if item in options],
         key=key,
         help=help_text,
     )
@@ -551,16 +163,11 @@ def join_values(values: list[str]) -> str:
 
 def review_card(title: str, rows: list[tuple[str, str]]) -> None:
     content = "".join(
-        f'<div class="cap-review-line"><strong>{escape(label)}</strong> {escape(value)}</div>'
+        f'<div class="cap-review-line"><strong>{escape(label)}</strong> {escape(str(value))}</div>'
         for label, value in rows
     )
     st.markdown(
-        f"""
-        <div class="cap-review-card">
-            <div class="cap-review-title">{escape(title)}</div>
-            {content}
-        </div>
-        """,
+        f'<div class="cap-review-card"><div class="cap-review-title">{escape(title)}</div>{content}</div>',
         unsafe_allow_html=True,
     )
 
@@ -569,184 +176,176 @@ def home_page() -> None:
     st.write("")
     logo(center=True)
     st.markdown(
-        """
-        <div class="cap-center">
-            <h1>Bienvenue</h1>
-            <div class="cap-lead">Identifiez la plateforme la plus adaptée à votre cabinet.</div>
-        </div>
-        """,
+        '<div class="cap-center"><h1>Bienvenue</h1><div class="cap-lead">Identifiez la plateforme la plus adaptée à votre cabinet.</div></div>',
         unsafe_allow_html=True,
     )
     left, middle, right = st.columns([1, 1.1, 1])
     with middle:
-        if st.button("Commencer", type="primary", width="stretch", key="start"):
+        if st.button("Commencer", type="primary", width="stretch"):
             navigate("prepare")
-    st.markdown(
-        '<p class="cap-center cap-note">Ce diagnostic ne vous prendra que quelques minutes.</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<p class="cap-center cap-note">Ce diagnostic ne vous prendra que quelques minutes.</p>', unsafe_allow_html=True)
 
 
 def prepare_page() -> None:
     st.write("")
     logo(center=True)
     st.markdown(
-        """
-        <div class="cap-center">
-            <h2>Avant de commencer</h2>
-            <div class="cap-lead">Munissez-vous de votre persona, de votre objectif et de votre plan de charge.</div>
-        </div>
-        """,
+        '<div class="cap-center"><h2>Avant de commencer</h2><div class="cap-lead">Préparez un persona, un objectif chiffré et une estimation des moyens disponibles. Réalisez un diagnostic distinct pour chaque persona.</div></div>',
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="cap-nav-spacer"></div>', unsafe_allow_html=True)
-    left, spacer, right = st.columns([1.2, 2.2, 1.4])
-    with left:
-        if st.button(
-            "Précédent",
-            type="secondary",
-            width="stretch",
-            key="prepare_back",
-        ):
-            navigate("home")
-    with right:
-        if st.button(
-            "Continuer",
-            type="primary",
-            width="stretch",
-            key="prepare_continue",
-        ):
-            navigate("target")
+    back, forward = render_nav("home")
+    if back:
+        navigate("home")
+    if forward:
+        navigate("target")
 
 
 def target_page() -> None:
     answers = st.session_state.answers
-    step_header(1, "Votre cible", "Les informations connues sur votre clientèle recherchée.")
+    step_header(1, "Votre cible", "Un diagnostic porte sur un seul persona et un seul besoin prioritaire.")
 
-    persona_options = ["Oui", "Non"]
-    saved_persona_status = answers.get("q1")
-    saved_persona_index = (
-        persona_options.index(saved_persona_status)
-        if saved_persona_status in persona_options
-        else None
-    )
-    q1 = st.radio(
-        "Persona défini ?",
-        persona_options,
-        index=saved_persona_index,
+    persona_status = st.radio(
+        "Votre persona est-il défini ?",
+        ["Oui", "Non"],
+        index=["Oui", "Non"].index(answers["q1"]) if answers.get("q1") in {"Oui", "Non"} else None,
         horizontal=True,
-        key="target_persona",
+        key="target_persona_status",
     )
-    saved_profiles = [
-        profile for profile in answers.get("q2", []) if profile in PROFILE_OPTIONS
-    ]
-    saved_profile = saved_profiles[0] if saved_profiles else "Non identifié"
-    selected_profile = st.selectbox(
+    saved_profile = (answers.get("q2") or [None])[0]
+    profile = st.selectbox(
         "Quel persona souhaitez-vous analyser ?",
         PROFILE_OPTIONS,
-        index=PROFILE_OPTIONS.index(saved_profile),
+        index=PROFILE_OPTIONS.index(saved_profile) if saved_profile in PROFILE_OPTIONS else None,
+        placeholder="Choisir un persona",
         key="target_profile",
-        help=(
-            "Réalisez un diagnostic distinct pour chaque persona. Deux profils "
-            "peuvent avoir des besoins et des usages différents."
-        ),
+        help="Si le cabinet vise plusieurs publics, recommencez le diagnostic pour chacun.",
     )
-    q2 = [selected_profile]
+    custom_profile = ""
+    if profile == "Autre":
+        custom_profile = st.text_input(
+            "Précisez ce persona",
+            value=answers.get("custom_profile", ""),
+            key="target_custom_profile",
+        )
+
     priority_need = st.text_input(
         "Quel besoin d’information prioritaire avez-vous identifié chez ce persona ?",
         value=answers.get("priority_need", ""),
-        placeholder="Ex. choisir la forme juridique adaptée à son activité",
+        placeholder="Ex. choisir le statut juridique adapté à son activité",
         key="target_priority_need",
-        help=(
-            "Renseignez un besoin observé dans vos échanges, entretiens, "
-            "questionnaires, données clients ou recherches sectorielles."
-        ),
+        help="Cette réponse précise le sujet à traiter. Elle ne choisit pas, à elle seule, la plateforme.",
     )
 
-    q4 = select_many(
-        "Sur quels réseaux ce persona recherche-t-il des informations liées à ce besoin ?",
-        TARGET_NETWORK_OPTIONS,
-        answers.get("q4", []),
-        "target_networks",
-        "Ne retenez pas ses réseaux de divertissement s’ils ne sont pas utilisés pour rechercher cette information.",
+    known_choice = ""
+    if answers.get("q4") == [UNKNOWN_NETWORK]:
+        known_choice = UNKNOWN_NETWORK
+    elif answers.get("q4") == [OUT_OF_SCOPE_NETWORK]:
+        known_choice = OUT_OF_SCOPE_NETWORK
+    elif any(item in PLATFORM_NAMES for item in answers.get("q4", [])):
+        known_choice = "Oui"
+    network_knowledge = st.radio(
+        "Savez-vous sur quels réseaux ce persona recherche cette information ?",
+        ["Oui", UNKNOWN_NETWORK, OUT_OF_SCOPE_NETWORK],
+        index=["Oui", UNKNOWN_NETWORK, OUT_OF_SCOPE_NETWORK].index(known_choice) if known_choice else None,
+        key="target_network_knowledge",
     )
-    q4_modes_by_network = {}
-    saved_modes = answers.get("q4_modes_by_network", {})
-    selected_known_networks = [
-        platform for platform in q4 if platform in PLATFORM_NAMES
-    ]
-    if selected_known_networks:
-        st.markdown("**Précisez l’usage observé sur chaque réseau**")
-        st.caption(
-            "Indiquez ce que le persona fait réellement lorsqu’il cherche "
-            "l’information liée à son besoin."
+
+    networks: list[str] = []
+    preferred_network = None
+    sources: list[str] = []
+    evidence_quality = None
+    if network_knowledge == "Oui":
+        networks = select_many(
+            "Quels réseaux utilise-t-il pour rechercher cette information ?",
+            PLATFORM_NAMES,
+            answers.get("q4", []),
+            "target_networks",
         )
-        for platform in selected_known_networks:
-            saved_mode = saved_modes.get(platform, "Non identifié")
-            if saved_mode not in DISCOVERY_MODE_OPTIONS:
-                saved_mode = "Non identifié"
-            q4_modes_by_network[platform] = st.selectbox(
-                f"Sur {platform}, comment ce persona recherche-t-il concrètement cette information ?",
-                DISCOVERY_MODE_OPTIONS,
-                index=DISCOVERY_MODE_OPTIONS.index(saved_mode),
-                key=f"target_discovery_mode_{platform}",
+        if len(networks) == 1:
+            preferred_network = networks[0]
+        elif len(networks) > 1:
+            priority_options = networks + [UNKNOWN_NETWORK]
+            saved_priority = answers.get("q4_priority")
+            preferred_network = st.selectbox(
+                "Parmi ces réseaux, lequel utilise-t-il le plus souvent pour rechercher cette information ?",
+                priority_options,
+                index=priority_options.index(saved_priority) if saved_priority in priority_options else None,
+                placeholder="Choisir un réseau ou « Je ne sais pas »",
+                key="target_preferred_network",
             )
-    q5 = select_many(
-        "D’où viennent vos informations ?",
-        SOURCE_OPTIONS,
-        answers.get("q5", []),
-        "target_sources",
-    )
-    previous_quality = answers.get("q5_quality", EVIDENCE_QUALITY_OPTIONS[0])
-    if previous_quality == "Récentes et confirmées":
-        previous_quality = "Récentes et fiables"
-    q5_quality = st.radio(
-        "Les informations sur les réseaux utilisés par votre cible sont-elles récentes et fiables ?",
-        EVIDENCE_QUALITY_OPTIONS,
-        index=EVIDENCE_QUALITY_OPTIONS.index(previous_quality),
-        horizontal=True,
-        key="target_evidence_quality",
-    )
+
+        has_source = st.radio(
+            "Disposez-vous d’au moins une source pour confirmer cette réponse ?",
+            ["Oui", "Non"],
+            index=0 if answers.get("q5") and answers.get("q5") != ["Aucune source"] else (1 if answers.get("q5") == ["Aucune source"] else None),
+            horizontal=True,
+            key="target_has_source",
+        )
+        if has_source == "Oui":
+            sources = select_many(
+                "D’où viennent vos informations ?",
+                [item for item in SOURCE_OPTIONS if item != "Aucune source"],
+                answers.get("q5", []),
+                "target_sources",
+            )
+            evidence_quality = st.radio(
+                "Ces informations sont-elles récentes et fiables ?",
+                EVIDENCE_QUALITY_OPTIONS,
+                index=EVIDENCE_QUALITY_OPTIONS.index(answers["q5_quality"]) if answers.get("q5_quality") in EVIDENCE_QUALITY_OPTIONS else None,
+                horizontal=True,
+                key="target_evidence_quality",
+            )
+        elif has_source == "Non":
+            sources = ["Aucune source"]
+            st.error("Vérifiez le profil de la cible à l’aide d’une source récente avant de continuer.")
+    elif network_knowledge == UNKNOWN_NETWORK:
+        networks = [UNKNOWN_NETWORK]
+        preferred_network = UNKNOWN_NETWORK
+        st.info("CAP utilisera sa base de référence pour proposer les plateformes les plus probables pour ce persona.")
+    elif network_knowledge == OUT_OF_SCOPE_NETWORK:
+        networks = [OUT_OF_SCOPE_NETWORK]
+        st.warning("CAP compare uniquement Facebook, Instagram, TikTok et YouTube.")
 
     back, forward = render_nav("prepare")
     if back:
         navigate("prepare")
     if forward:
-        errors = []
-        if q1 is None:
-            errors.append("Indiquez si le persona est défini.")
-        if "Non identifié" in q4 and len(q4) > 1:
-            errors.append("« Non identifié » ne peut pas être associé à un réseau.")
-        unidentified_modes = [
-            platform
-            for platform, mode in q4_modes_by_network.items()
-            if mode == "Non identifié"
-        ]
-        if unidentified_modes:
-            errors.append(
-                "Précisez comment le persona recherche cette information sur "
-                f"{', '.join(unidentified_modes)}."
-            )
-        if "Aucune source" in q5 and len(q5) > 1:
-            errors.append("« Aucune source » ne peut pas être associée à une autre source.")
+        errors: list[str] = []
+        if persona_status != "Oui":
+            errors.append("Finalisez le persona avant de continuer.")
+        if not profile:
+            errors.append("Choisissez le persona à analyser.")
+        if profile == "Autre" and not custom_profile.strip():
+            errors.append("Précisez le persona à analyser.")
+        if not priority_need.strip():
+            errors.append("Précisez le besoin d’information prioritaire du persona.")
+        if not network_knowledge:
+            errors.append("Indiquez si les réseaux utilisés par ce persona sont connus.")
+        elif network_knowledge == OUT_OF_SCOPE_NETWORK:
+            errors.append("Ce diagnostic ne peut pas comparer un réseau situé hors du périmètre de CAP.")
+        elif network_knowledge == "Oui":
+            if not networks:
+                errors.append("Sélectionnez au moins un réseau.")
+            if len(networks) > 1 and not preferred_network:
+                errors.append("Indiquez le réseau le plus souvent utilisé ou choisissez « Je ne sais pas ».")
+            if sources == ["Aucune source"] or not sources:
+                errors.append("Indiquez une source permettant de confirmer les réseaux utilisés.")
+            if evidence_quality != "Oui":
+                errors.append("Confirmez que les informations sont récentes et fiables.")
         if errors:
             for error in errors:
                 st.error(error)
         else:
-            answers.update(
-                {
-                    "q1": q1,
-                    "q2": q2,
-                    "q2_coherence": "Oui",
-                    "q3": "Oui" if priority_need.strip() else "Non",
-                    "priority_need": priority_need.strip(),
-                    "q4": q4,
-                    "q4_modes_by_network": q4_modes_by_network,
-                    "q5": q5,
-                    "q5_quality": q5_quality,
-                }
-            )
-            answers.pop("q4_modes", None)
+            answers.update({
+                "q1": persona_status,
+                "q2": [profile],
+                "custom_profile": custom_profile.strip(),
+                "priority_need": priority_need.strip(),
+                "q4": networks,
+                "q4_priority": preferred_network,
+                "q5": sources,
+                "q5_quality": evidence_quality,
+            })
             next_screen("objective")
 
 
@@ -754,481 +353,307 @@ def objective_page() -> None:
     answers = st.session_state.answers
     step_header(2, "Votre objectif", "Le résultat que la communication doit produire.")
 
-    q6 = st.selectbox(
+    saved_objective = answers.get("q6", "Non défini")
+    objective = st.selectbox(
         "Quel est votre objectif ?",
         OBJECTIVE_OPTIONS,
-        index=OBJECTIVE_OPTIONS.index(answers.get("q6", "Non défini")),
+        index=OBJECTIVE_OPTIONS.index(saved_objective) if saved_objective in OBJECTIVE_OPTIONS else OBJECTIVE_OPTIONS.index("Non défini"),
         key="objective_choice",
     )
-
-    indicator_options = INDICATOR_OPTIONS.get(q6, ["Autre indicateur"])
-    saved_indicator = answers.get("indicator", indicator_options[0])
-    indicator_index = (
-        indicator_options.index(saved_indicator)
-        if saved_indicator in indicator_options
-        else 0
-    )
-
-    st.caption("Précisez la mesure suivie, le résultat recherché et le délai.")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        indicator_choice = st.selectbox(
-            "Indicateur suivi",
-            indicator_options,
-            index=indicator_index,
-            key=f"indicator_choice_{q6}",
-        )
-    with c2:
-        target = st.text_input(
-            "Résultat attendu",
-            value=answers.get("target", ""),
-            placeholder="Ex. : 2",
-            help="Indiquez la valeur chiffrée que vous souhaitez atteindre.",
-            key="objective_target",
-        )
-    with c3:
-        deadline = st.text_input(
-            "Échéance",
-            value=answers.get("deadline", ""),
-            placeholder="Ex. : 3 mois",
-            help="Indiquez le délai fixé pour atteindre le résultat.",
-            key="objective_deadline",
-        )
-
-    if indicator_choice == "Autre indicateur":
-        indicator = st.text_input(
-            "Précisez l’indicateur",
-            value=(
-                answers.get("indicator", "")
-                if answers.get("indicator") not in indicator_options
-                else ""
-            ),
-            placeholder="Ex. : demandes de devis",
-            key="objective_custom_indicator",
-        )
-    else:
-        indicator = indicator_choice
+    custom_objective = ""
+    indicator = ""
+    target = ""
+    deadline = ""
+    if objective != "Non défini":
+        if objective == "Autre":
+            custom_objective = st.text_input(
+                "Précisez votre objectif",
+                value=answers.get("custom_objective", ""),
+                key="objective_custom",
+            )
+        st.caption("Précisez la mesure suivie, le résultat attendu et le délai.")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            saved_indicator = answers.get("indicator")
+            indicator_choice = st.selectbox(
+                "Indicateur suivi",
+                INDICATOR_OPTIONS,
+                index=INDICATOR_OPTIONS.index(saved_indicator) if saved_indicator in INDICATOR_OPTIONS else None,
+                placeholder="Choisir un indicateur",
+                key="objective_indicator",
+            )
+        with c2:
+            target = st.text_input(
+                "Résultat attendu",
+                value=answers.get("target", ""),
+                placeholder="Ex. 10",
+                key="objective_target",
+            )
+        with c3:
+            deadline = st.text_input(
+                "Échéance",
+                value=answers.get("deadline", ""),
+                placeholder="Ex. 8 mois",
+                key="objective_deadline",
+            )
+        if indicator_choice == "Autre indicateur":
+            indicator = st.text_input(
+                "Précisez l’indicateur",
+                value=answers.get("custom_indicator", ""),
+                placeholder="Ex. demandes de devis",
+                key="objective_custom_indicator",
+            )
+        else:
+            indicator = indicator_choice or ""
 
     back, forward = render_nav("target")
     if back:
         navigate("target")
     if forward:
-        if q6 == "Non défini":
-            st.error("Objectif non défini — formalisez votre objectif avant de poursuivre.")
-        elif q6 == "Autre":
-            st.error(
-                "Choisissez un objectif proposé afin que l’outil puisse comparer "
-                "les plateformes."
-            )
-        elif not indicator.strip() or not target.strip() or not deadline.strip():
-            st.error("Renseignez l’indicateur, le résultat attendu et l’échéance.")
-        elif not any(character.isdigit() for character in target):
-            st.error("Indiquez un résultat attendu chiffré.")
-        elif not any(character.isdigit() for character in deadline):
-            st.error("Indiquez une échéance précise, par exemple « 3 mois ».")
-        else:
-            answers.update(
-                {
-                    "q6": q6,
-                    "indicator": indicator.strip(),
-                    "target": target.strip(),
-                    "deadline": deadline.strip(),
-                }
-            )
-            next_screen("presence")
-
-
-def presence_page() -> None:
-    answers = st.session_state.answers
-    step_header(
-        3,
-        "Vos résultats actuels",
-        "Ces informations servent uniquement à départager plusieurs plateformes compatibles.",
-    )
-
-    preview = compare_platforms(answers)
-    compatible_platforms = preview["compatible_platforms"]
-
-    legacy_status = {
-        "Aucun": "Aucun résultat identifié",
-        "Aucun compte": "Aucun résultat identifié",
-        "Inactif": "Aucun résultat identifié",
-        "Compte inactif": "Aucun résultat identifié",
-        "Actif": "Aucun résultat identifié",
-        "Compte actif": "Aucun résultat identifié",
-        "Audience qualifiée": "Audience cible engagée",
-        "Contacts générés": "Contacts obtenus",
-    }
-    statuses = {}
-    if len(compatible_platforms) > 1:
-        st.markdown("**Résultats obtenus auprès du persona analysé**")
-        st.caption(
-            "Ne retenez que les résultats obtenus avec ce persona pour le besoin "
-            "étudié. Les résultats provenant d’un autre public ne comptent pas."
-        )
-        with st.expander("Comprendre les niveaux"):
-            st.markdown(
-                """
-                - **Aucun résultat identifié** : aucun résultat n’a encore été observé auprès de ce persona sur cette plateforme.
-                - **Audience cible engagée** : ce persona suit ou sollicite déjà le compte.
-                - **Contacts obtenus** : ce persona a déjà pris contact ou demandé un rendez-vous.
-
-                L’existence d’un compte actif ou inactif ne départage jamais les plateformes.
-                """
-            )
-        columns = st.columns(2)
-        for index, platform in enumerate(compatible_platforms):
-            with columns[index % 2]:
-                previous = answers.get("q7", {}).get(
-                    platform, "Aucun résultat identifié"
-                )
-                previous = legacy_status.get(previous, previous)
-                if previous not in PLATFORM_RESULT_OPTIONS:
-                    previous = "Aucun résultat identifié"
-                statuses[platform] = st.selectbox(
-                    platform,
-                    PLATFORM_RESULT_OPTIONS,
-                    index=PLATFORM_RESULT_OPTIONS.index(previous),
-                    key=f"status_{platform}",
-                )
-    elif len(compatible_platforms) == 1:
-        st.info(
-            f"{compatible_platforms[0]} est la seule plateforme compatible. "
-            "Aucun départage n’est nécessaire."
-        )
-    else:
-        st.warning(
-            "Aucune plateforme ne correspond à la fois à l’usage observé du "
-            "persona et à l’objectif du cabinet."
-        )
-
-    back, forward = render_nav("objective")
-    if back:
-        navigate("objective")
-    if forward:
-        answers["q7"] = statuses
-        next_screen("resources")
-
-
-def resources_page() -> None:
-    answers = st.session_state.answers
-    step_header(4, "Vos moyens", "Le temps et les ressources réellement mobilisables.")
-
-    preview = compare_platforms(answers)
-    recommended = preview["winner"]
-    tied_platforms = preview["tied_platforms"]
-
-    if preview["outcome"] in {"invalid_data", "no_compatible_platform"}:
-        if preview["outcome"] == "no_compatible_platform":
-            st.warning(
-                "Aucune plateforme ne correspond à la fois à l’usage observé du "
-                "persona et à l’objectif du cabinet. Les moyens ne sont donc pas "
-                "évalués à ce stade."
-            )
-        else:
-            st.warning(
-                "Les moyens seront évalués lorsque les informations stratégiques "
-                "permettront de comparer les plateformes."
-            )
-        back, forward = render_nav("presence", "Continuer")
-        if back:
-            navigate("presence")
-        if forward:
-            st.session_state.return_to_review = False
-            navigate("review")
-        return
-
-    if recommended:
-        format_platforms = [recommended]
-    elif tied_platforms:
-        format_platforms = tied_platforms
-    else:
-        st.warning(
-            "Les formats seront proposés lorsque les informations stratégiques "
-            "permettront d’identifier une plateforme."
-        )
-        format_platforms = []
-
-    q8 = st.selectbox(
-        "Quel temps mensuel pouvez-vous consacrer ?",
-        TIME_OPTIONS,
-        index=TIME_OPTIONS.index(answers.get("q8", TIME_OPTIONS[0])),
-        key="resources_time",
-    )
-
-    if format_platforms:
-        compatible_formats = []
-        for platform in format_platforms:
-            for content_format in PLATFORM_FORMATS[platform]:
-                if content_format not in compatible_formats:
-                    compatible_formats.append(content_format)
-        saved_formats = [
-            content_format
-            for content_format in answers.get("q14", [])
-            if content_format in compatible_formats
-        ]
-        q14 = select_many(
-            "Quels formats pouvez-vous produire régulièrement ?",
-            compatible_formats,
-            saved_formats,
-            "resources_formats",
-            "Les choix proposés correspondent à l’analyse réalisée. Sélectionnez "
-            "uniquement les formats que le cabinet peut tenir dans la durée.",
-        )
-    else:
-        q14 = []
-
-    recorded_video_formats = [
-        content_format
-        for content_format in q14
-        if content_format in {
-            "Reel / vidéo courte",
-            "Reel",
-            "Vidéo",
-            "Vidéo longue",
-            "Short",
-        }
-    ]
-    if recorded_video_formats:
-        q16 = st.radio(
-            "Pour les vidéos enregistrées, une personne apparaîtra-t-elle face caméra ?",
-            ["Oui", "Non"],
-            index=["Oui", "Non"].index(answers.get("q16", "Non")),
-            horizontal=True,
-            key="resources_on_camera",
-            help=(
-                "Répondez non si les vidéos reposent uniquement sur une voix off, "
-                "une capture d’écran, une animation ou des visuels."
-            ),
-        )
-    elif "Live" in q14:
-        q16 = "Oui"
-        st.info("Un Live nécessite une aisance face caméra.")
-    else:
-        q16 = "Non"
-
-    required_skills = required_skills_for_formats(
-        q14,
-        appears_on_camera=q16 == "Oui",
-    )
-    competencies = {}
-    if required_skills:
-        st.markdown("**Votre niveau pour les compétences réellement nécessaires**")
-        for skill in sorted(required_skills):
-            previous = answers.get("q9", {}).get(skill, "Notions")
-            competencies[skill] = st.radio(
-                skill,
-                COMPETENCY_LEVELS,
-                index=COMPETENCY_LEVELS.index(previous),
-                horizontal=True,
-                key=f"skill_{skill}",
-            )
-
-    q10 = select_many(
-        "Quel matériel possédez-vous ?",
-        EQUIPMENT_OPTIONS,
-        answers.get("q10", []),
-        "resources_equipment",
-    )
-    q11 = st.selectbox(
-        "Qui pilotera la communication ?",
-        PILOT_OPTIONS,
-        index=PILOT_OPTIONS.index(answers.get("q11", PILOT_OPTIONS[0])),
-        key="resources_pilot",
-    )
-    skills_to_strengthen = [
-        skill for skill, level in competencies.items() if level != "Autonome"
-    ]
-    legacy_support = {
-        "Appui interne": "Aide interne",
-        "Prestataire externe": "Prestataire",
-    }
-    saved_support = [
-        legacy_support.get(item, item)
-        for item in answers.get("q12", [])
-        if legacy_support.get(item, item) in APP_SUPPORT_OPTIONS
-    ]
-    if skills_to_strengthen:
-        q12 = select_many(
-            "Quelle solution avez-vous retenue pour les compétences à renforcer ?",
-            APP_SUPPORT_OPTIONS,
-            saved_support,
-            "resources_support",
-            "Sélectionnez la solution qui sera réellement utilisée avant le lancement.",
-        )
-    else:
-        q12 = []
-
-    legacy_budget = {
-        "Budget validé": "Oui",
-        "Montant à confirmer": "À vérifier",
-        "Dépense indispensable non finançable": "Non",
-        "Non évalué": "À vérifier",
-    }
-    saved_budget = legacy_budget.get(
-        answers.get("q13"),
-        answers.get("q13", BUDGET_OPTIONS[0]),
-    )
-    q13 = st.selectbox(
-        "Le cabinet peut-il financer les dépenses nécessaires au lancement ?",
-        BUDGET_OPTIONS,
-        index=BUDGET_OPTIONS.index(saved_budget),
-        key="resources_budget",
-    )
-
-    back, forward = render_nav("presence", "Continuer")
-    if back:
-        navigate("presence")
-    if forward:
-        errors = []
-        if format_platforms and not q14:
-            errors.append(
-                "Sélectionnez au moins un format que vous pouvez produire régulièrement."
-            )
-        if "Aucun matériel" in q10 and len(q10) > 1:
-            errors.append("« Aucun matériel » ne peut pas être associé à un équipement.")
-        if skills_to_strengthen and not q12:
-            errors.append(
-                "Indiquez comment les compétences à renforcer seront complétées."
-            )
-        if "Solution à trouver" in q12 and len(q12) > 1:
-            errors.append(
-                "« Solution à trouver » ne peut pas être associée à une solution déjà retenue."
-            )
+        errors: list[str] = []
+        if objective == "Non défini":
+            errors.append("Définissez votre objectif avant de continuer.")
+        if objective == "Autre" and not custom_objective.strip():
+            errors.append("Précisez votre objectif.")
+        if objective != "Non défini":
+            if not indicator.strip() or not target.strip() or not deadline.strip():
+                errors.append("Renseignez l’indicateur, le résultat attendu et l’échéance.")
+            elif not any(character.isdigit() for character in target):
+                errors.append("Indiquez un résultat attendu chiffré.")
+            elif not any(character.isdigit() for character in deadline):
+                errors.append("Indiquez une échéance précise, par exemple « 8 mois ».")
         if errors:
             for error in errors:
                 st.error(error)
         else:
-            answers.update(
-                {
-                    "q8": q8,
-                    "q14": q14,
-                    "q9": competencies,
-                    "q10": q10,
-                    "q11": q11,
-                    "q12": q12,
-                    "q13": q13,
-                    "q15": None,
-                    "q16": q16,
-                }
+            answers.update({
+                "q6": objective,
+                "custom_objective": custom_objective.strip(),
+                "indicator": indicator.strip(),
+                "custom_indicator": indicator.strip() if indicator not in INDICATOR_OPTIONS else "",
+                "target": target.strip(),
+                "deadline": deadline.strip(),
+            })
+            next_screen("resources")
+
+
+def resources_page() -> None:
+    answers = st.session_state.answers
+    step_header(3, "Vos moyens", "Le temps et les ressources réellement mobilisables.")
+
+    saved_time = answers.get("q8")
+    available_time = st.selectbox(
+        "Quel temps mensuel pouvez-vous consacrer ?",
+        TIME_OPTIONS,
+        index=TIME_OPTIONS.index(saved_time) if saved_time in TIME_OPTIONS else None,
+        placeholder="Choisir un temps disponible",
+        key="resources_time",
+    )
+    formats = select_many(
+        "Quels formats pouvez-vous produire régulièrement ?",
+        GENERIC_FORMATS,
+        answers.get("q14", []),
+        "resources_formats",
+        "Choisissez les formats que le cabinet peut réellement tenir dans la durée.",
+    )
+
+    on_camera = "Non"
+    if set(formats).intersection(VIDEO_FORMATS):
+        on_camera = st.radio(
+            "Une personne apparaîtra-t-elle à l’écran ?",
+            ["Oui", "Non"],
+            index=["Oui", "Non"].index(answers["q16"]) if answers.get("q16") in {"Oui", "Non"} else None,
+            horizontal=True,
+            key="resources_on_camera",
+            help="Répondez non si les vidéos utilisent seulement une voix off, une capture d’écran ou des visuels.",
+        )
+
+    required_skills = sorted(required_skills_for_formats(formats, on_camera == "Oui"))
+    competencies: dict[str, str] = {}
+    if required_skills:
+        st.markdown("**Votre niveau pour les compétences nécessaires**")
+        for skill in required_skills:
+            saved_level = answers.get("q9", {}).get(skill)
+            competencies[skill] = st.radio(
+                skill,
+                COMPETENCY_LEVELS,
+                index=COMPETENCY_LEVELS.index(saved_level) if saved_level in COMPETENCY_LEVELS else None,
+                horizontal=True,
+                key=f"skill_{skill}",
             )
+
+    has_equipment = st.radio(
+        "Disposez-vous d’au moins un matériel pour produire les contenus ?",
+        ["Oui", "Non"],
+        index=1 if answers.get("q10") == ["Aucun matériel"] else (0 if answers.get("q10") else None),
+        horizontal=True,
+        key="resources_has_equipment",
+    )
+    equipment: list[str] = []
+    if has_equipment == "Oui":
+        equipment = select_many(
+            "Quel matériel possédez-vous ?",
+            [item for item in EQUIPMENT_OPTIONS if item != "Aucun matériel"],
+            answers.get("q10", []),
+            "resources_equipment",
+        )
+    elif has_equipment == "Non":
+        equipment = ["Aucun matériel"]
+
+    saved_pilot = answers.get("q11")
+    pilot = st.selectbox(
+        "Qui pilotera la communication ?",
+        PILOT_OPTIONS,
+        index=PILOT_OPTIONS.index(saved_pilot) if saved_pilot in PILOT_OPTIONS else None,
+        placeholder="Choisir un responsable",
+        key="resources_pilot",
+    )
+
+    skills_to_strengthen = [skill for skill, level in competencies.items() if level != "Autonome"]
+    support: list[str] = []
+    support_confirmed: dict[str, str] = {}
+    if skills_to_strengthen:
+        support = select_many(
+            "Comment comptez-vous acquérir ou renforcer ces compétences ?",
+            APP_SUPPORT_OPTIONS,
+            answers.get("q12", []),
+            "resources_support",
+        )
+        for solution in support:
+            saved_confirmation = answers.get("q12_confirmed", {}).get(solution)
+            support_confirmed[solution] = st.radio(
+                SUPPORT_CONFIRMATION_LABELS[solution],
+                ["Oui", "Non"],
+                index=["Oui", "Non"].index(saved_confirmation) if saved_confirmation in {"Oui", "Non"} else None,
+                horizontal=True,
+                key=f"support_confirmation_{solution}",
+            )
+
+    has_cost = st.radio(
+        "Les solutions ou le matériel prévus entraînent-ils une dépense ?",
+        ["Oui", "Non"],
+        index=["Oui", "Non"].index(answers["q13_has_cost"]) if answers.get("q13_has_cost") in {"Oui", "Non"} else None,
+        horizontal=True,
+        key="resources_has_cost",
+    )
+    budget_validated = None
+    if has_cost == "Oui":
+        budget_validated = st.radio(
+            "Le budget nécessaire est-il validé ?",
+            ["Oui", "Non"],
+            index=["Oui", "Non"].index(answers["q13_budget_validated"]) if answers.get("q13_budget_validated") in {"Oui", "Non"} else None,
+            horizontal=True,
+            key="resources_budget_validated",
+        )
+    elif has_cost == "Non":
+        budget_validated = "Sans objet"
+
+    back, forward = render_nav("objective", "Continuer")
+    if back:
+        navigate("objective")
+    if forward:
+        errors: list[str] = []
+        if not available_time:
+            errors.append("Indiquez le temps mensuel disponible.")
+        if not formats:
+            errors.append("Choisissez au moins un format régulier.")
+        if any(level is None for level in competencies.values()):
+            errors.append("Indiquez votre niveau pour chaque compétence nécessaire.")
+        if on_camera is None:
+            errors.append("Indiquez si une personne apparaîtra à l’écran.")
+        if has_equipment is None or (has_equipment == "Oui" and not equipment):
+            errors.append("Indiquez le matériel disponible.")
+        if not pilot:
+            errors.append("Indiquez qui pilotera la communication.")
+        if any(value is None for value in support_confirmed.values()):
+            errors.append("Confirmez si chaque solution choisie est réellement prévue.")
+        if has_cost is None:
+            errors.append("Indiquez si une dépense est prévue.")
+        if has_cost == "Oui" and budget_validated is None:
+            errors.append("Indiquez si le budget nécessaire est validé.")
+        if errors:
+            for error in errors:
+                st.error(error)
+        else:
+            answers.update({
+                "q8": available_time,
+                "q14": formats,
+                "q16": on_camera,
+                "q9": competencies,
+                "q10": equipment,
+                "q11": pilot,
+                "q12": support,
+                "q12_confirmed": support_confirmed,
+                "q13_has_cost": has_cost,
+                "q13_budget_validated": budget_validated,
+                "q15": None,
+            })
             st.session_state.return_to_review = False
             navigate("review")
 
 
 def review_page() -> None:
     answers = st.session_state.answers
-    preview = compare_platforms(answers)
     logo()
     st.markdown('<div class="cap-eyebrow">Vérification</div>', unsafe_allow_html=True)
     st.header("Récapitulatif")
-    st.markdown(
-        '<div class="cap-question">Relisez vos réponses avant de lancer l’analyse.</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="cap-question">Relisez vos réponses avant de lancer l’analyse.</div>', unsafe_allow_html=True)
 
-    review_card(
-        "Votre cible",
-        [
-            ("Persona :", join_values(answers.get("q2", []))),
-            ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
-            ("Canaux d’information :", join_values(answers.get("q4", []))),
-            (
-                "Usage par réseau :",
-                " · ".join(
-                    f"{platform} : {mode}"
-                    for platform, mode in answers.get(
-                        "q4_modes_by_network", {}
-                    ).items()
-                )
-                or "Non renseigné",
-            ),
-            ("Sources :", join_values(answers.get("q5", []))),
-            (
-                "Vérification des informations :",
-                answers.get("q5_quality", "Non renseignée"),
-            ),
-        ],
-    )
+    persona = (answers.get("q2") or ["Non renseigné"])[0]
+    if persona == "Autre":
+        persona = answers.get("custom_profile") or persona
+    review_card("Votre cible", [
+        ("Persona :", persona),
+        ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
+        ("Réseaux connus :", join_values(answers.get("q4", []))),
+        ("Réseau le plus souvent utilisé :", answers.get("q4_priority") or "Non renseigné"),
+        ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Base de référence CAP"),
+        ("Informations récentes et fiables :", answers.get("q5_quality") or "Sans objet"),
+    ])
     if st.button("Modifier la cible", type="secondary", key="edit_target"):
         st.session_state.return_to_review = True
         navigate("target")
 
-    review_card(
-        "Votre objectif",
-        [
-            ("Objectif :", answers.get("q6", "Non renseigné")),
-            ("Indicateur :", answers.get("indicator", "Non renseigné")),
-            ("Résultat attendu :", answers.get("target", "Non renseigné")),
-            ("Échéance :", answers.get("deadline", "Non renseigné")),
-        ],
-    )
+    objective_label = answers.get("custom_objective") if answers.get("q6") == "Autre" else answers.get("q6")
+    review_card("Votre objectif", [
+        ("Objectif :", objective_label or "Non renseigné"),
+        ("Indicateur :", answers.get("indicator", "Non renseigné")),
+        ("Résultat attendu :", answers.get("target", "Non renseigné")),
+        ("Échéance :", answers.get("deadline", "Non renseigné")),
+    ])
     if st.button("Modifier l’objectif", type="secondary", key="edit_objective"):
         st.session_state.return_to_review = True
         navigate("objective")
 
-    statuses = answers.get("q7", {})
-    presence = " · ".join(
-        f"{platform} : {status}" for platform, status in statuses.items()
-    ) or "Aucun départage nécessaire"
-    review_card(
-        "Résultats actuels",
-        [("Résultats auprès du persona :", presence)],
+    skill_summary = " · ".join(f"{skill} : {level}" for skill, level in answers.get("q9", {}).items())
+    support_summary = " · ".join(
+        f"{solution} : {'prévu' if answers.get('q12_confirmed', {}).get(solution) == 'Oui' else 'non confirmé'}"
+        for solution in answers.get("q12", [])
     )
-    if st.button("Modifier la présence", type="secondary", key="edit_presence"):
+    budget = "Aucune dépense prévue" if answers.get("q13_has_cost") == "Non" else (
+        "Budget validé" if answers.get("q13_budget_validated") == "Oui" else "Budget non validé"
+    )
+    review_card("Vos moyens", [
+        ("Temps :", answers.get("q8", "Non renseigné")),
+        ("Formats :", join_values(answers.get("q14", []))),
+        ("Présence à l’écran :", answers.get("q16", "Sans objet")),
+        ("Compétences :", skill_summary or "Non renseigné"),
+        ("Matériel :", join_values(answers.get("q10", []))),
+        ("Responsable :", answers.get("q11", "Non renseigné")),
+        ("Solutions :", support_summary or "Sans objet"),
+        ("Budget :", budget),
+    ])
+    if st.button("Modifier les moyens", type="secondary", key="edit_resources"):
         st.session_state.return_to_review = True
-        navigate("presence")
-
-    if preview["outcome"] in {"recommended", "tie"}:
-        skill_summary = " · ".join(
-            f"{skill} : {level}"
-            for skill, level in answers.get("q9", {}).items()
-        )
-        review_card(
-            "Vos moyens",
-            [
-                ("Temps :", answers.get("q8", "Non renseigné")),
-                ("Formats :", join_values(answers.get("q14", []))),
-                (
-                    "Présence face caméra :",
-                    answers.get("q16", "Non")
-                    if any(
-                        content_format
-                        in {
-                            "Reel / vidéo courte",
-                            "Reel",
-                            "Vidéo",
-                            "Vidéo longue",
-                            "Short",
-                            "Live",
-                        }
-                        for content_format in answers.get("q14", [])
-                    )
-                    else "Sans objet",
-                ),
-                ("Compétences :", skill_summary or "Non renseigné"),
-                ("Matériel :", join_values(answers.get("q10", []))),
-                ("Pilotage :", answers.get("q11", "Non renseigné")),
-                (
-                    "Solution pour les compétences :",
-                    join_values(answers.get("q12", []))
-                    if answers.get("q12")
-                    else "Sans objet",
-                ),
-                ("Budget :", answers.get("q13", "Non renseigné")),
-            ],
-        )
-        if st.button("Modifier les moyens", type="secondary", key="edit_resources"):
-            st.session_state.return_to_review = True
-            navigate("resources")
-
-    back, validate = render_nav("resources", "Valider")
-    if back:
         navigate("resources")
-    if validate:
-        with st.spinner("Analyse en cours…"):
-            st.session_state.result = evaluate(answers)
-        navigate("result")
+
+    st.markdown('<div class="cap-nav-spacer"></div>', unsafe_allow_html=True)
+    left, middle, right = st.columns([1, 1.4, 1])
+    with middle:
+        if st.button("Valider et obtenir le résultat", type="primary", width="stretch"):
+            with st.spinner("Analyse en cours…"):
+                st.session_state.result = evaluate(answers)
+            navigate("result")
 
 
 def result_page() -> None:
@@ -1236,70 +661,50 @@ def result_page() -> None:
     answers = st.session_state.answers
     if not result:
         navigate("home")
+        return
 
     logo()
-    st.markdown(
-        '<div class="cap-eyebrow cap-center">Résultat du diagnostic</div>',
-        unsafe_allow_html=True,
-    )
-    strategic_status = result["strategic_status"]
-    winner = result["winner"]
-    tied_platforms = result.get("tied_platforms", [])
-    observation_platform = result.get("observation_platform")
-    selection_outcome = result.get("selection_outcome")
+    st.markdown('<div class="cap-eyebrow cap-center">Résultat du diagnostic</div>', unsafe_allow_html=True)
+    recommended = result.get("recommended_platforms", [])
+    retained = result.get("retained_platform")
+    winner = result.get("winner")
 
-    if strategic_status != "Choix validé":
-        result_title = strategic_status
-        result_text = (
-            "Aucune plateforme ne peut être recommandée à ce stade. "
-            "Corrigez les informations indiquées, puis relancez le diagnostic."
-        )
-    elif selection_outcome == "no_compatible_platform":
-        result_title = "Aucune plateforme compatible"
-        result_text = (
-            "Les réseaux indiqués sont utilisés par le persona, mais aucun ne "
-            "correspond à la fois à sa manière d’y rechercher cette information "
-            "et à l’objectif du cabinet. Vérifiez les réponses ou adaptez l’objectif."
-        )
-    elif winner and result["feasibility_label"] == "Projet prêt":
-        result_title = "Tout est prêt"
-        result_text = (
-            f"Vous pouvez vous lancer. {winner} est la plateforme la plus "
-            "cohérente avec votre stratégie et vos moyens."
-        )
-    elif winner:
-        result_title = result["feasibility_label"]
-        result_text = (
-            f"{winner} est la plateforme la plus cohérente avec votre stratégie. "
-            "Consultez la synthèse pour préparer son lancement."
-        )
+    if result["strategic_status"] != "Choix validé":
+        title = "Projet à revoir"
+        text = "Aucune plateforme ne peut être recommandée. Corrigez les informations indiquées dans la synthèse, puis relancez le diagnostic."
+    elif len(recommended) > 1 and not retained:
+        title = "Plateformes recommandées"
+        text = f"CAP recommande {', '.join(recommended)} au même niveau. Choisissez celle que le cabinet retiendra pour le lancement."
+    elif len(recommended) > 1 and retained:
+        title = result["feasibility_label"]
+        text = f"CAP recommande {', '.join(recommended)} au même niveau. Le cabinet retient {retained} pour le lancement."
     else:
-        platforms_text = ", ".join(tied_platforms)
-        result_title = "Plateformes équivalentes"
-        if observation_platform:
-            result_text = (
-                f"Aucun élément objectif ne permet de départager {platforms_text}. "
-                f"{observation_platform} est retenue pour la période d’observation."
-            )
+        platform = winner or retained or (recommended[0] if recommended else "")
+        title = result["feasibility_label"]
+        if result["feasibility_label"] == "Projet prêt":
+            text = f"{platform} est la plateforme recommandée. Les moyens déclarés permettent de commencer."
         else:
-            result_text = (
-                f"Aucun élément objectif ne permet de départager {platforms_text}. "
-                "Retenez une seule plateforme pour la période d’observation définie."
-            )
+            text = f"{platform} est la plateforme recommandée. Réalisez les actions indiquées dans la synthèse avant de commencer."
 
     st.markdown(
-        f"""
-        <div class="cap-result-box">
-            <div class="cap-result-title">{escape(result_title)}</div>
-            <div class="cap-result-text">{escape(result_text)}</div>
-        </div>
-        """,
+        f'<div class="cap-result-box"><div class="cap-result-title">{escape(title)}</div><div class="cap-result-text">{escape(text)}</div></div>',
         unsafe_allow_html=True,
     )
+
+    if len(recommended) > 1 and not retained:
+        st.markdown("**Quelle plateforme le cabinet retient-il pour le lancement ?**")
+        columns = st.columns(len(recommended))
+        for index, platform in enumerate(recommended):
+            with columns[index]:
+                if st.button(platform, type="primary", width="stretch", key=f"retain_{platform}"):
+                    answers["q15"] = platform
+                    st.session_state.result = evaluate(answers)
+                    st.rerun()
 
     pdf_bytes = build_summary_pdf(answers, result)
     st.write("")
-    if strategic_status == "Choix validé" and winner:
+    chosen_platform = retained or winner or (recommended[0] if len(recommended) == 1 else None)
+    if chosen_platform:
         download_col, guide_col = st.columns(2)
         with download_col:
             st.download_button(
@@ -1311,14 +716,20 @@ def result_page() -> None:
                 width="stretch",
             )
         with guide_col:
-            st.button(
-                "Guide de la plateforme non intégré",
-                disabled=True,
-                width="stretch",
-            )
+            guide_path = BASE_DIR / "guides" / f"{chosen_platform.lower()}.pdf"
+            if guide_path.exists():
+                st.download_button(
+                    "Télécharger le guide de la plateforme",
+                    data=guide_path.read_bytes(),
+                    file_name=guide_path.name,
+                    mime="application/pdf",
+                    width="stretch",
+                )
+            else:
+                st.button("Guide de la plateforme non intégré", disabled=True, width="stretch")
     else:
-        left_download, download_col, right_download = st.columns([1, 2, 1])
-        with download_col:
+        left, middle, right = st.columns([1, 2, 1])
+        with middle:
             st.download_button(
                 "Télécharger ma synthèse",
                 data=pdf_bytes,
@@ -1328,18 +739,12 @@ def result_page() -> None:
                 width="stretch",
             )
 
-    left, spacer, right = st.columns([1.2, 2, 1.4])
-    with left:
-        if st.button("Précédent", type="secondary", width="stretch"):
-            navigate("review")
-    with right:
+    st.markdown('<div class="cap-nav-spacer"></div>', unsafe_allow_html=True)
+    left, middle, right = st.columns([1, 1.2, 1])
+    with middle:
         if st.button("Recommencer", type="secondary", width="stretch"):
             reset_diagnostic()
-
-    st.markdown(
-        '<p class="cap-note">Les réponses restent dans votre session et sont supprimées lorsque celle-ci est fermée.</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<p class="cap-note cap-center">Les réponses sont supprimées à la fermeture de la session.</p>', unsafe_allow_html=True)
 
 
 inject_css()
@@ -1350,7 +755,6 @@ PAGES = {
     "prepare": prepare_page,
     "target": target_page,
     "objective": objective_page,
-    "presence": presence_page,
     "resources": resources_page,
     "review": review_page,
     "result": result_page,
