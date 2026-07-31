@@ -104,6 +104,10 @@ PLATFORM_RESULT_OPTIONS = [
     "Contacts obtenus",
 ]
 
+# Compatibilité avec une ancienne version d’app.py pendant un déploiement.
+# Le contenu reste celui de la nouvelle logique : aucun statut de compte.
+PLATFORM_STATUS_OPTIONS = PLATFORM_RESULT_OPTIONS
+
 TIME_OPTIONS = [
     "Aucun temps disponible",
     "Moins de 2 h",

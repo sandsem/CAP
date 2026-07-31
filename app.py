@@ -15,12 +15,22 @@ from config import (
     PILOT_OPTIONS,
     PLATFORM_FORMATS,
     PLATFORM_NAMES,
-    PLATFORM_RESULT_OPTIONS,
     PROFILE_OPTIONS,
     SOURCE_OPTIONS,
     TARGET_NETWORK_OPTIONS,
     TIME_OPTIONS,
 )
+
+try:
+    from config import PLATFORM_RESULT_OPTIONS
+except ImportError:
+    # Permet à l’application de rester disponible si app.py est déployé avant
+    # config.py. Les statuts de compte ne sont volontairement pas repris.
+    PLATFORM_RESULT_OPTIONS = [
+        "Aucun résultat identifié",
+        "Audience cible engagée",
+        "Contacts obtenus",
+    ]
 from pdf_export import build_summary_pdf
 from scoring import compare_platforms, evaluate, required_skills_for_formats
 
