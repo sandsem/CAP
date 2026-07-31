@@ -35,7 +35,7 @@ CAP n’utilise ni note sur 100, ni pondération, ni mode d’usage exclusif att
 Si plusieurs plateformes restent au même niveau, les moyens du cabinet peuvent
 les départager. Si l’égalité demeure, CAP recommande toutes les plateformes
 équivalentes. Le cabinet en retient ensuite une pour le lancement. La synthèse
-distingue clairement la recommandation de CAP du choix final du cabinet.
+distingue ce choix uniquement lorsqu’une égalité a réellement été reconnue.
 
 Les résultats déjà obtenus et l’état actif ou inactif d’un compte n’entrent pas
 dans le moteur de recommandation.
@@ -60,7 +60,7 @@ rouge reporte le lancement sans changer la plateforme recommandée.
 Une compétence manquante ne bloque pas le diagnostic. Une autoformation, une
 formation, un appui interne ou un prestataire peut être prévu. Un smartphone
 peut suffire pour débuter ; une caméra ou une ring light ne sont pas rendues
-artificiellement obligatoires.
+artificiellement obligatoires. Plusieurs responsables peuvent être désignés.
 
 ## Interface et synthèse
 
@@ -85,6 +85,6 @@ streamlit run app.py
 python -m unittest discover -s tests -v
 ```
 
-La suite comprend 306 tests : 275 scénarios de décision croisant les personas,
+La suite comprend 312 tests : 275 scénarios de décision croisant les personas,
 les objectifs et les situations réseau, ainsi que des tests du moteur, de la
 faisabilité, de l’interface et de l’export PDF.

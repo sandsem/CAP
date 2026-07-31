@@ -11,6 +11,7 @@ from config import (
     GENERIC_FORMATS,
     INDICATOR_OPTIONS,
     OBJECTIVE_OPTIONS,
+    NO_PILOT,
     OUT_OF_SCOPE_NETWORK,
     PILOT_OPTIONS,
     PLATFORM_NAMES,
@@ -69,6 +70,27 @@ def inject_css() -> None:
         [data-testid="stPills"] button { background:#fff!important; color:var(--black)!important; border:1px solid #C9CDD2!important; }
         [data-testid="stPills"] button[aria-pressed="true"] { background:var(--black)!important; color:#fff!important; border-color:var(--black)!important; }
         [data-testid="stRadio"] [aria-checked="true"]>div:first-child { background:var(--black)!important; border-color:var(--black)!important; }
+        [data-testid="InputInstructions"], [data-testid*="InputInstructions"] { display:none!important; }
+        div[data-baseweb="popover"], div[data-baseweb="popover"] ul,
+        div[data-baseweb="popover"] [role="listbox"],
+        div[data-baseweb="menu"], ul[role="listbox"], div[role="listbox"] {
+            background:#111!important; color:#fff!important;
+        }
+        div[data-baseweb="popover"] li,
+        div[data-baseweb="popover"] [role="option"],
+        ul[role="listbox"] [role="option"], div[role="listbox"] [role="option"] {
+            background:#111!important; color:#fff!important;
+        }
+        div[data-baseweb="popover"] li *,
+        div[data-baseweb="popover"] [role="option"] *,
+        ul[role="listbox"] [role="option"] *, div[role="listbox"] [role="option"] * {
+            color:#fff!important;
+        }
+        div[data-baseweb="popover"] li:hover,
+        div[data-baseweb="popover"] [role="option"]:hover,
+        ul[role="listbox"] [role="option"]:hover,
+        div[role="listbox"] [role="option"]:hover,
+        [role="option"][aria-selected="true"] { background:#343434!important; }
         div[data-testid="stAlert"] { border-radius:12px; }
         @media(max-width:640px){ .block-container{padding:1.3rem 1rem 2.5rem}.cap-nav-spacer{height:2rem} }
         </style>
@@ -500,14 +522,27 @@ def resources_page() -> None:
     elif has_equipment == "Non":
         equipment = ["Aucun matériel"]
 
-    saved_pilot = answers.get("q11")
-    pilot = st.selectbox(
-        "Qui pilotera la communication ?",
-        PILOT_OPTIONS,
-        index=PILOT_OPTIONS.index(saved_pilot) if saved_pilot in PILOT_OPTIONS else None,
-        placeholder="Choisir un responsable",
-        key="resources_pilot",
+    saved_pilots = answers.get("q11", [])
+    if isinstance(saved_pilots, str):
+        saved_pilots = [] if saved_pilots == NO_PILOT else [saved_pilots]
+    has_pilot = st.radio(
+        "Une ou plusieurs personnes sont-elles déjà désignées pour piloter la communication ?",
+        ["Oui", "Non"],
+        index=1 if answers.get("q11") == NO_PILOT or answers.get("q11") == [NO_PILOT] else (0 if saved_pilots else None),
+        horizontal=True,
+        key="resources_has_pilot",
     )
+    pilots: list[str] = []
+    if has_pilot == "Oui":
+        pilots = list(st.multiselect(
+            "Qui pilotera la communication ?",
+            PILOT_OPTIONS,
+            default=[item for item in saved_pilots if item in PILOT_OPTIONS],
+            placeholder="Choisir une ou plusieurs personnes",
+            key="resources_pilots",
+        ))
+    elif has_pilot == "Non":
+        pilots = [NO_PILOT]
 
     skills_to_strengthen = [skill for skill, level in competencies.items() if level != "Autonome"]
     support: list[str] = []
@@ -563,7 +598,7 @@ def resources_page() -> None:
             errors.append("Indiquez si une personne apparaîtra à l’écran.")
         if has_equipment is None or (has_equipment == "Oui" and not equipment):
             errors.append("Indiquez le matériel disponible.")
-        if not pilot:
+        if has_pilot is None or (has_pilot == "Oui" and not pilots):
             errors.append("Indiquez qui pilotera la communication.")
         if any(value is None for value in support_confirmed.values()):
             errors.append("Confirmez si chaque solution choisie est réellement prévue.")
@@ -581,7 +616,7 @@ def resources_page() -> None:
                 "q16": on_camera,
                 "q9": competencies,
                 "q10": equipment,
-                "q11": pilot,
+                "q11": pilots,
                 "q12": support,
                 "q12_confirmed": support_confirmed,
                 "q13_has_cost": has_cost,
@@ -639,7 +674,7 @@ def review_page() -> None:
         ("Présence à l’écran :", answers.get("q16", "Sans objet")),
         ("Compétences :", skill_summary or "Non renseigné"),
         ("Matériel :", join_values(answers.get("q10", []))),
-        ("Responsable :", answers.get("q11", "Non renseigné")),
+        ("Responsable(s) :", join_values(answers.get("q11", [])) if isinstance(answers.get("q11"), list) else answers.get("q11", "Non renseigné")),
         ("Solutions :", support_summary or "Sans objet"),
         ("Budget :", budget),
     ])

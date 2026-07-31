@@ -1,5 +1,6 @@
 import unittest
 
+from config import OUT_OF_SCOPE_NETWORK
 from scoring import compare_platforms, evaluate, required_skills_for_formats, strategic_control
 
 
@@ -26,7 +27,7 @@ def base_answers():
             "Création de visuels": "Autonome",
         },
         "q10": ["Smartphone récent", "Ordinateur", "Connexion internet stable"],
-        "q11": "L’expert-comptable",
+        "q11": ["L’expert-comptable"],
         "q12": [],
         "q12_confirmed": {},
         "q13_has_cost": "Non",
@@ -104,7 +105,7 @@ class StrategicTests(unittest.TestCase):
 
     def test_out_of_scope_network_blocks(self):
         answers = base_answers()
-        answers.update({"q4": ["Aucun de ces quatre réseaux"], "q5": [], "q5_quality": None})
+        answers.update({"q4": [OUT_OF_SCOPE_NETWORK], "q5": [], "q5_quality": None})
         self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
 
     def test_special_network_answers_are_exclusive(self):
@@ -133,6 +134,11 @@ class StrategicTests(unittest.TestCase):
         result = evaluate(answers)
         self.assertEqual(set(result["recommended_platforms"]), {"Instagram", "TikTok"})
         self.assertEqual(result["retained_platform"], "TikTok")
+
+    def test_single_recommendation_is_not_presented_as_cabinet_choice(self):
+        result = evaluate(base_answers())
+        self.assertEqual(result["winner"], "Instagram")
+        self.assertIsNone(result["retained_platform"])
 
 
 class FeasibilityTests(unittest.TestCase):
@@ -186,8 +192,15 @@ class FeasibilityTests(unittest.TestCase):
 
     def test_no_responsible_person_is_red(self):
         answers = base_answers()
-        answers["q11"] = "Personne n’est encore désignée"
+        answers["q11"] = ["Personne n’est encore désignée"]
         self.assertEqual(self._row(evaluate(answers), "Responsable")["status"], "rouge")
+
+    def test_several_responsible_people_are_allowed(self):
+        answers = base_answers()
+        answers["q11"] = ["L’expert-comptable", "Un collaborateur désigné"]
+        responsible = self._row(evaluate(answers), "Responsable")
+        self.assertEqual(responsible["status"], "vert")
+        self.assertIn("Un collaborateur désigné", responsible["observation"])
 
 
 if __name__ == "__main__":

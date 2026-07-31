@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 try:
     from streamlit.testing.v1 import AppTest
@@ -6,6 +7,27 @@ except ModuleNotFoundError:
     AppTest = None
 
 from tests.test_scoring import base_answers
+
+
+class InterfaceRegressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.source = Path("app.py").read_text(encoding="utf-8")
+
+    def test_native_enter_instruction_is_hidden(self):
+        self.assertIn('[data-testid*="InputInstructions"]', self.source)
+        self.assertIn("display:none!important", self.source)
+
+    def test_dropdown_options_are_forced_to_dark_background(self):
+        self.assertIn('div[data-baseweb="popover"]', self.source)
+        self.assertIn('[role="option"]', self.source)
+        self.assertIn("background:#111!important", self.source)
+
+    def test_out_of_scope_option_explicitly_names_the_four_networks(self):
+        from config import OUT_OF_SCOPE_NETWORK
+
+        for network in ("Facebook", "Instagram", "TikTok", "YouTube"):
+            self.assertIn(network, OUT_OF_SCOPE_NETWORK)
 
 
 @unittest.skipIf(AppTest is None, "Streamlit n’est pas installé dans cet environnement")
@@ -44,6 +66,10 @@ class AppSmokeTests(unittest.TestCase):
         rendered = " ".join(item.value for item in app.markdown if hasattr(item, "value"))
         self.assertNotIn("Instagram est", rendered)
         self.assertNotIn("TikTok est", rendered)
+
+    def test_resources_allows_several_responsible_people(self):
+        app = self._app("resources", base_answers())
+        self.assertIn("Qui pilotera la communication ?", [item.label for item in app.multiselect])
 
     def test_review_has_no_previous_button(self):
         app = self._app("review", base_answers())

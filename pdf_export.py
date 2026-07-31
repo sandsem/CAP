@@ -9,12 +9,17 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.graphics.shapes import Circle, Drawing, Path as DrawingPath, Polygon, String
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 REGULAR_FONT = FONT_DIR / "DejaVuSans.ttf"
 BOLD_FONT = FONT_DIR / "DejaVuSans-Bold.ttf"
+if not (REGULAR_FONT.exists() and BOLD_FONT.exists()):
+    SYSTEM_FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
+    REGULAR_FONT = SYSTEM_FONT_DIR / "DejaVuSans.ttf"
+    BOLD_FONT = SYSTEM_FONT_DIR / "DejaVuSans-Bold.ttf"
 if REGULAR_FONT.exists() and BOLD_FONT.exists():
     pdfmetrics.registerFont(TTFont("CAP-Regular", str(REGULAR_FONT)))
     pdfmetrics.registerFont(TTFont("CAP-Bold", str(BOLD_FONT)))
@@ -53,6 +58,51 @@ def _styles() -> dict:
             fontSize=8.3, leading=11,
         ),
     }
+
+
+def _cap_logo() -> Drawing:
+    """Version vectorielle du logo CAP pour conserver un rendu net dans le PDF."""
+    drawing = Drawing(58, 58)
+    black = colors.HexColor("#111111")
+    drawing.add(Circle(29, 29, 17.5, fillColor=None, strokeColor=black, strokeWidth=2.2))
+
+    upper = DrawingPath()
+    upper.moveTo(9, 31)
+    upper.curveTo(10, 47, 25, 56, 42, 50)
+    upper.strokeColor = black
+    upper.strokeWidth = 2.5
+    upper.fillColor = None
+    drawing.add(upper)
+    drawing.add(Polygon([40, 55, 50, 49, 40, 45], fillColor=black, strokeColor=black))
+
+    lower = DrawingPath()
+    lower.moveTo(49, 27)
+    lower.curveTo(47, 11, 31, 3, 15, 10)
+    lower.strokeColor = black
+    lower.strokeWidth = 2.5
+    lower.fillColor = None
+    drawing.add(lower)
+    drawing.add(Polygon([17, 5, 7, 11, 17, 16], fillColor=black, strokeColor=black))
+
+    drawing.add(String(
+        29, 25.5, "CAP", fontName=FONT_BOLD, fontSize=11.5,
+        fillColor=black, textAnchor="middle",
+    ))
+    drawing.hAlign = "CENTER"
+    return drawing
+
+
+def _decision_criterion(result: dict) -> str:
+    labels = {
+        "réseau observé auprès du persona": "Réseau réellement utilisé par le persona",
+        "réseau le plus souvent utilisé par le persona": "Réseau le plus souvent utilisé par le persona",
+        "objectif du cabinet": "Objectif du cabinet",
+        "moyens du cabinet": "Moyens disponibles dans le cabinet",
+        "égalité reconnue": "Égalité entre plusieurs plateformes",
+        "égalité stratégique": "Égalité entre plusieurs plateformes",
+    }
+    value = result.get("tie_break") or "Égalité entre plusieurs plateformes"
+    return labels.get(value, str(value).capitalize())
 
 
 def _table(rows: list, widths: list) -> Table:
@@ -132,13 +182,14 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     )
 
     story = [
-        Paragraph("CAP", styles["title"]),
+        _cap_logo(),
+        Spacer(1, 4),
         Paragraph("Synthèse du diagnostic", styles["subtitle"]),
         Paragraph(escape(result_title), styles["title"]),
         Paragraph(escape(result_subtitle), styles["subtitle"]),
     ]
     if retained:
-        story.append(Paragraph(f"Plateforme retenue par le cabinet : {escape(retained)}", styles["subtitle"]))
+        story.append(Paragraph(f"Plateforme choisie pour démarrer : {escape(retained)}", styles["subtitle"]))
 
     story.append(Paragraph("Données de décision", styles["heading"]))
     source_text = ", ".join(answers.get("q5", [])) or "Base de référence CAP"
@@ -154,17 +205,20 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     story.append(_table(decision_rows, [48 * mm, 102 * mm]))
 
     story.append(Paragraph("Résultat du diagnostic", styles["heading"]))
-    status_rows = [[Paragraph("Contrôle", styles["label"]), Paragraph("Résultat", styles["label"])],
-        [Paragraph("Données stratégiques", styles["label"]), Paragraph(escape(result.get("strategic_status", "")), styles["value"])],
-    ]
+    status_rows = [[Paragraph("Élément", styles["label"]), Paragraph("Résultat", styles["label"])]]
     if result.get("strategic_status") == "Choix validé":
         status_rows.extend([
-            [Paragraph("Recommandation CAP", styles["label"]), Paragraph(escape(" et ".join(recommended)), styles["value"])],
-            [Paragraph("Critère de départage", styles["label"]), Paragraph(escape(result.get("tie_break") or "Égalité reconnue"), styles["value"])],
+            [Paragraph("Plateforme recommandée", styles["label"]), Paragraph(escape(" et ".join(recommended)), styles["value"])],
+            [Paragraph("Élément déterminant", styles["label"]), Paragraph(escape(_decision_criterion(result)), styles["value"])],
             [Paragraph("Faisabilité", styles["label"]), Paragraph(escape(result.get("feasibility_label", "")), styles["value"])],
         ])
         if retained:
-            status_rows.append([Paragraph("Choix du cabinet", styles["label"]), Paragraph(escape(retained), styles["value"])])
+            status_rows.append([Paragraph("Plateforme choisie pour le lancement", styles["label"]), Paragraph(escape(retained), styles["value"])])
+    else:
+        status_rows.append([
+            Paragraph("Résultat", styles["label"]),
+            Paragraph("Aucune plateforme ne peut être recommandée à ce stade.", styles["value"]),
+        ])
     story.append(_table(status_rows, [58 * mm, 92 * mm]))
 
     if result.get("selection_reasons"):
@@ -194,7 +248,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     story.extend([
         Spacer(1, 14),
         Paragraph(
-            "Cette synthèse est une aide à la décision fondée sur les réponses du cabinet et la base de référence CAP.",
+            "Cette synthèse est une aide à la décision fondée sur les informations renseignées dans CAP.",
             styles["subtitle"],
         ),
     ])

@@ -2,7 +2,7 @@ PLATFORM_NAMES = ["Facebook", "Instagram", "TikTok", "YouTube"]
 REFERENCE_BASE_DATE = "31 juillet 2026"
 
 UNKNOWN_NETWORK = "Je ne sais pas"
-OUT_OF_SCOPE_NETWORK = "Aucun de ces quatre réseaux"
+OUT_OF_SCOPE_NETWORK = "Aucun de ces réseaux : Facebook, Instagram, TikTok ou YouTube"
 
 PROFILE_OPTIONS = [
     "Créateur d’entreprise",
@@ -92,8 +92,9 @@ PILOT_OPTIONS = [
     "Un collaborateur désigné",
     "Une personne ou équipe dédiée à la communication",
     "Un community manager ou prestataire externe",
-    "Personne n’est encore désignée",
 ]
+
+NO_PILOT = "Personne n’est encore désignée"
 
 APP_SUPPORT_OPTIONS = [
     "Autoformation",

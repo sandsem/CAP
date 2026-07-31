@@ -6,7 +6,7 @@ Version consolidée du moteur et de l’interface après validation de la sectio
 |---:|---|---|---|
 | 1 | Limiter un diagnostic à un seul persona | Intégrée | Un seul choix est possible ; un autre public impose un nouveau diagnostic |
 | 2 | Conserver le besoin prioritaire sans lui faire choisir la plateforme | Intégrée | Le besoin précise le sujet des contenus et figure dans la synthèse |
-| 3 | Demander d’abord si les réseaux utilisés sont connus | Intégrée | Trois réponses exclusives : oui, je ne sais pas, aucun des quatre réseaux |
+| 3 | Demander d’abord si les réseaux utilisés sont connus | Intégrée | Trois réponses exclusives : oui, je ne sais pas, aucun de Facebook, Instagram, TikTok ou YouTube |
 | 4 | Empêcher les combinaisons incohérentes avec « Je ne sais pas » | Intégrée | La structure de la question rend la combinaison impossible |
 | 5 | Exiger une source lorsque le cabinet affirme connaître les réseaux | Intégrée | Sans source, l’utilisateur ne peut pas poursuivre |
 | 6 | Utiliser une vérification binaire des informations | Intégrée | Question simple : informations récentes et fiables, oui ou non |
@@ -31,7 +31,7 @@ Version consolidée du moteur et de l’interface après validation de la sectio
 | 25 | Vérifier que la solution de compétence est réellement prévue | Intégrée | Une question oui/non apparaît pour chaque solution choisie |
 | 26 | Empêcher « Aucun matériel » avec un autre équipement | Intégrée | Une question préalable sépare les deux situations |
 | 27 | Ne pas rendre une caméra ou une ring light indispensable | Intégrée | Un smartphone peut suffire selon le format |
-| 28 | Clarifier le responsable | Intégrée | Six choix précis, dont « personne n’est encore désignée » |
+| 28 | Clarifier le responsable | Intégrée | Plusieurs responsables peuvent être sélectionnés ; l’absence de responsable reste une situation distincte |
 | 29 | Simplifier le budget | Intégrée | Dépense oui/non, puis budget validé oui/non si nécessaire |
 | 30 | Séparer stratégie et faisabilité | Intégrée | Les moyens ne remplacent jamais un meilleur choix stratégique |
 | 31 | Utiliser les moyens uniquement pour départager une égalité | Intégrée | Comparaison de faisabilité entre plateformes stratégiquement équivalentes |
@@ -43,4 +43,9 @@ Version consolidée du moteur et de l’interface après validation de la sectio
 | 37 | Maintenir l’export PDF avec lignes colorées | Intégrée | Les constats de faisabilité sont regroupés par couleur sans colonne d’état |
 | 38 | Réserver les guides aux versions validées | En attente | Les emplacements existent ; les quatre PDF définitifs restent à fournir |
 | 39 | Mettre à jour les textes et la documentation | Intégrée | README, grille de décision et fiche unique alignés avec le code |
-| 40 | Tester la logique par des scénarios métier | Intégrée | 306 tests, dont 275 scénarios persona × objectif × situation réseau |
+| 40 | Tester la logique par des scénarios métier | Intégrée | 312 tests, dont 275 scénarios persona × objectif × situation réseau |
+| 41 | Supprimer l’instruction anglaise des champs de saisie | Intégrée | « Press Enter to apply » est masqué dans toute l’interface |
+| 42 | Uniformiser les menus déroulants | Intégrée | Les listes ouvertes utilisent un fond noir et un texte blanc |
+| 43 | Nommer les quatre plateformes dans la réponse hors périmètre | Intégrée | Facebook, Instagram, TikTok et YouTube sont indiqués directement |
+| 44 | Afficher le logo dans la synthèse | Intégrée | Le nom CAP isolé est remplacé par une version vectorielle du logo |
+| 45 | Supprimer les répétitions du résultat PDF | Intégrée | Le PDF affiche la recommandation, l’élément déterminant et la faisabilité ; le choix du cabinet n’apparaît qu’en cas d’égalité réelle |

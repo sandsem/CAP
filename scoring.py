@@ -1,6 +1,7 @@
 from config import (
     FORMAT_REQUIRED_SKILLS,
     OBJECTIVE_PRIORITY_PLATFORMS,
+    NO_PILOT,
     OUT_OF_SCOPE_NETWORK,
     PERSONA_PLATFORM_REFERENCE,
     PLATFORM_FORMATS,
@@ -280,8 +281,11 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
             "Aucune action nécessaire.",
         ))
 
-    pilot = answers.get("q11")
-    if pilot in {None, "", "Personne n’est encore désignée"}:
+    pilots = answers.get("q11", [])
+    if isinstance(pilots, str):
+        pilots = [pilots] if pilots else []
+    active_pilots = [pilot for pilot in pilots if pilot != NO_PILOT]
+    if not active_pilots:
         rows.append(_criterion(
             "Responsable", "rouge",
             "Aucun responsable n’est encore désigné.",
@@ -290,7 +294,7 @@ def evaluate_feasibility(answers: dict, platform: str | None) -> dict:
     else:
         rows.append(_criterion(
             "Responsable", "vert",
-            f"Le pilotage est confié à : {pilot}.",
+            f"Le pilotage est confié à : {', '.join(active_pilots)}.",
             "Préciser les tâches et le temps prévu.",
         ))
 
@@ -401,8 +405,8 @@ def evaluate(answers: dict) -> dict:
 
     recommended = [winner] if winner else tied
     retained = answers.get("q15")
-    if retained not in recommended:
-        retained = winner
+    if len(recommended) <= 1 or retained not in recommended:
+        retained = None
     platform_for_launch = retained or winner or (tied[0] if tied else None)
     feasibility = (
         feasibility_by_platform.get(platform_for_launch)
