@@ -1,0 +1,32 @@
+name: Appliquer les corrections CAP
+
+on:
+  push:
+    branches: [v14-candidate]
+    paths: [cap_fixes.patch.gz.b64]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fixes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer la branche candidate
+        uses: actions/checkout@v4
+        with:
+          ref: v14-candidate
+          fetch-depth: 0
+      - name: Appliquer les corrections validées
+        run: |
+          base64 -d cap_fixes.patch.gz.b64 | gzip -d > /tmp/cap_fixes.patch
+          git apply --check /tmp/cap_fixes.patch
+          git apply /tmp/cap_fixes.patch
+          rm cap_fixes.patch.gz.b64 .github/workflows/apply-cap-fixes.yml
+      - name: Enregistrer les corrections
+        run: |
+          git config user.name "CAP Audit"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Corriger la restitution et la hiérarchie de décision"
+          git push origin HEAD:v14-candidate
