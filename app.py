@@ -24,6 +24,7 @@ from config import (
     VIDEO_FORMATS,
 )
 from pdf_export import build_summary_pdf
+from research import research_platforms
 from scoring import evaluate, required_skills_for_formats
 
 
@@ -36,6 +37,12 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def cached_external_research(answers: dict) -> dict:
+    """Recherche publique mise en cache pour limiter les requêtes répétées."""
+    return research_platforms(answers)
 
 
 def inject_css() -> None:
@@ -660,11 +667,13 @@ def review_page() -> None:
     persona = (answers.get("q2") or ["Non renseigné"])[0]
     if persona == "Autre":
         persona = answers.get("custom_profile") or persona
+    observed_networks = [item for item in answers.get("q4", []) if item in PLATFORM_NAMES]
     review_card("Votre cible", [
         ("Persona :", persona),
         ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
+        ("Réseaux observés :", join_values(observed_networks) if observed_networks else "Non identifiés"),
         ("Réseau le plus souvent utilisé :", answers.get("q4_priority") or "Non renseigné"),
-        ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Base de référence CAP"),
+        ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Recherche CAP et référentiel interne"),
         ("Informations récentes et fiables :", answers.get("q5_quality") or "Sans objet"),
     ])
     if st.button("Modifier la cible", type="secondary", key="edit_target"):
@@ -717,8 +726,9 @@ def review_page() -> None:
     left, middle, right = st.columns([1, 1.4, 1])
     with middle:
         if st.button("Valider et obtenir le résultat", type="primary", width="stretch"):
-            with st.spinner("Analyse en cours…"):
-                st.session_state.result = evaluate(answers)
+            with st.spinner("Recherche publique et analyse des plateformes en cours…"):
+                external_research = cached_external_research(dict(answers))
+                st.session_state.result = evaluate(answers, external_research)
             navigate("result")
 
 
@@ -731,46 +741,37 @@ def result_page() -> None:
 
     logo()
     st.markdown('<div class="cap-eyebrow cap-center">Résultat du diagnostic</div>', unsafe_allow_html=True)
-    recommended = result.get("recommended_platforms", [])
-    retained = result.get("retained_platform")
     winner = result.get("winner")
+    complementary = result.get("complementary_platform")
 
     if result["strategic_status"] != "Choix validé":
         title = "Projet à revoir"
         text = "Aucune plateforme ne peut être recommandée. Corrigez les informations indiquées dans la synthèse, puis relancez le diagnostic."
-    elif len(recommended) > 1 and not retained:
-        title = "Plateformes recommandées"
-        text = f"CAP recommande {', '.join(recommended)} au même niveau. Choisissez celle que le cabinet retiendra pour le lancement."
-    elif len(recommended) > 1 and retained:
-        title = result["feasibility_label"]
-        text = f"CAP recommande {', '.join(recommended)} au même niveau. Le cabinet retient {retained} pour le lancement."
     else:
-        platform = winner or retained or (recommended[0] if recommended else "")
         title = result["feasibility_label"]
         if result["feasibility_label"] == "Projet prêt":
-            text = f"{platform} est la plateforme recommandée. Les moyens déclarés permettent de commencer."
+            text = f"{winner} est la plateforme prioritaire. Les moyens déclarés permettent de commencer."
+        elif result["feasibility_label"] == "Lancement à préparer":
+            text = f"{winner} reste la plateforme prioritaire. Préparez les éléments indiqués dans la synthèse avant la première publication."
         else:
-            text = f"{platform} est la plateforme recommandée. Réalisez les actions indiquées dans la synthèse avant de commencer."
+            text = f"{winner} reste la plateforme prioritaire, mais le lancement doit être reporté jusqu’à la résolution des points bloquants."
+        if complementary:
+            text += f" {complementary} peut être utilisé ensuite comme relais complémentaire."
 
     st.markdown(
         f'<div class="cap-result-box"><div class="cap-result-title">{escape(title)}</div><div class="cap-result-text">{escape(text)}</div></div>',
         unsafe_allow_html=True,
     )
 
-    if len(recommended) > 1 and not retained:
-        st.markdown("**Quelle plateforme le cabinet retient-il pour le lancement ?**")
-        columns = st.columns(len(recommended))
-        for index, platform in enumerate(recommended):
-            with columns[index]:
-                if st.button(platform, type="primary", width="stretch", key=f"retain_{platform}"):
-                    answers["q15"] = platform
-                    st.session_state.result = evaluate(answers)
-                    st.rerun()
+    research = result.get("external_research", {})
+    if research.get("status") == "live":
+        st.caption(f"Recherche publique réalisée le {research.get('searched_at', '')}. Les sources et limites figurent dans la synthèse.")
+    elif research:
+        st.warning("La recherche publique n’était pas disponible. CAP a terminé l’analyse avec les données du cabinet et son référentiel interne.")
 
     pdf_bytes = build_summary_pdf(answers, result)
     st.write("")
-    chosen_platform = retained or winner or (recommended[0] if len(recommended) == 1 else None)
-    if chosen_platform:
+    if winner:
         download_col, guide_col = st.columns(2)
         with download_col:
             st.download_button(
@@ -782,7 +783,7 @@ def result_page() -> None:
                 width="stretch",
             )
         with guide_col:
-            guide_path = BASE_DIR / "guides" / f"{chosen_platform.lower()}.pdf"
+            guide_path = BASE_DIR / "guides" / f"{winner.lower()}.pdf"
             if guide_path.exists():
                 st.download_button(
                     "Télécharger le guide de la plateforme",

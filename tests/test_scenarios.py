@@ -1,12 +1,7 @@
 import unittest
 
-from config import (
-    INDICATORS_BY_OBJECTIVE,
-    OBJECTIVE_PRIORITY_PLATFORMS,
-    PERSONA_PLATFORM_REFERENCE,
-    PLATFORM_NAMES,
-)
-from scoring import compare_platforms
+from config import INDICATORS_BY_OBJECTIVE, PERSONA_PLATFORM_REFERENCE, PLATFORM_NAMES
+from scoring import evaluate
 from tests.test_scoring import base_answers
 
 
@@ -31,6 +26,17 @@ def _scenario_test(profile: str, objective: str, network_case: str):
             item for item in INDICATORS_BY_OBJECTIVE[objective]
             if item != "Autre indicateur"
         )
+        if objective == "Recrutement":
+            answers["priority_need"] = "Recruter un jeune collaborateur ou un alternant"
+        elif objective == "Fidélisation":
+            answers["priority_need"] = "Maintenir une relation régulière avec les clients existants"
+        elif objective == "Visibilité et notoriété":
+            answers["priority_need"] = "Faire connaître le cabinet et ses domaines d’intervention"
+        elif objective == "Expertise et conseil":
+            answers["priority_need"] = "Expliquer un choix fiscal et juridique complexe"
+        else:
+            answers["priority_need"] = "Présenter les solutions proposées par le cabinet"
+
         if network_case == "inconnu":
             answers.update({
                 "q4": ["Je ne sais pas"],
@@ -38,9 +44,6 @@ def _scenario_test(profile: str, objective: str, network_case: str):
                 "q5": [],
                 "q5_quality": None,
             })
-            candidates = PERSONA_PLATFORM_REFERENCE[profile]
-            priorities = OBJECTIVE_PRIORITY_PLATFORMS[objective]
-            expected = [item for item in candidates if item in priorities] or candidates
         else:
             answers.update({
                 "q4": [network_case],
@@ -48,12 +51,12 @@ def _scenario_test(profile: str, objective: str, network_case: str):
                 "q5": ["Entretiens"],
                 "q5_quality": "Oui",
             })
-            expected = [network_case]
 
-        selection = compare_platforms(answers)
-        actual = [selection["winner"]] if selection["winner"] else selection["tied_platforms"]
-        self.assertEqual(actual, expected, (profile, objective, network_case))
-        self.assertTrue(set(actual).issubset(set(PLATFORM_NAMES)))
+        result = evaluate(answers)
+        self.assertEqual(result["strategic_status"], "Choix validé")
+        self.assertIn(result["winner"], PLATFORM_NAMES)
+        self.assertEqual(result["recommended_platforms"], [result["winner"]])
+        self.assertNotEqual(result["selection_outcome"], "tie")
     return test
 
 

@@ -1,86 +1,48 @@
-# CAP
+# CAP - V14 ajustée
 
-CAP est un outil interactif d’aide au choix d’une plateforme sociale destiné
-aux experts-comptables qui créent leur cabinet ex nihilo.
+CAP est un outil d'aide à la décision destiné aux experts-comptables ex nihilo. Il compare Facebook, Instagram, TikTok et YouTube à partir de la cible, du besoin prioritaire, de l'objectif SMART, d'informations publiques actualisées et des moyens réellement disponibles.
 
-## Parcours
+## Architecture conservée
 
-Le diagnostic suit trois étapes :
+L'architecture visuelle de la V13 n'a pas été modifiée :
 
-1. analyser un seul persona, son besoin prioritaire et les réseaux qu’il utilise ;
-2. définir l’objectif chiffré du cabinet ;
-3. vérifier les formats, les compétences et les moyens mobilisables.
+`Accueil -> Avant de commencer -> Cible -> Objectif -> Moyens -> Récapitulatif -> Analyse -> Résultat`
 
-Un cabinet qui vise plusieurs personas réalise un diagnostic séparé pour
-chacun. Le besoin prioritaire précise le sujet des futurs contenus ; il ne
-classe pas automatiquement les plateformes.
+Aucun nouvel écran n'a été ajouté. La recherche externe est exécutée pendant l'analyse.
 
-Si le persona n’est pas défini, CAP arrête le diagnostic avant toute autre
-question. L’indicateur proposé à l’étape suivante dépend de l’objectif choisi :
-un indicateur de recrutement ne peut donc pas mesurer une acquisition de
-clients.
+## Logique de décision
 
-## Moteur de recommandation
+1. Le cabinet renseigne un persona, un besoin prioritaire, ses observations éventuelles, un objectif SMART et ses moyens.
+2. CAP effectue une recherche documentaire sur des pages publiques indexées. Il ne recherche ni personnes à contacter, ni coordonnées, ni données personnelles.
+3. Les quatre plateformes sont comparées selon la cible, le besoin, l'objectif, les observations et les signaux publics trouvés.
+4. Lorsque plusieurs plateformes sont stratégiquement proches, les moyens peuvent les départager.
+5. Lorsqu'une plateforme ressort nettement, elle reste prioritaire même si son lancement doit être préparé ou reporté.
+6. CAP désigne toujours une seule plateforme prioritaire. Une plateforme complémentaire n'est proposée que si elle apporte une fonction distincte, permet la réutilisation des contenus et reste compatible avec la capacité du cabinet.
+7. La faisabilité est évaluée séparément : `Projet prêt`, `Lancement à préparer` ou `Lancement à reporter`.
 
-Lorsque le cabinet connaît les réseaux utilisés par le persona, cette
-observation réelle est prioritaire. Elle doit être appuyée par au moins une
-source et déclarée récente et fiable. Si plusieurs réseaux sont connus, le
-réseau utilisé le plus souvent est retenu lorsqu’il a été identifié.
+## Recherche publique
 
-Lorsque le cabinet ne connaît pas ces réseaux, CAP utilise une base de
-référence associant chaque catégorie de persona à plusieurs plateformes
-probables. Cette base est datée du 31 juillet 2026 et doit être revue
-périodiquement.
+La recherche utilise des requêtes ciblées sur les pages publiques indexées de Facebook, Instagram, TikTok et YouTube. Les résultats sont utilisés comme signaux documentaires, pas comme mesure exhaustive de l'audience.
 
-L’objectif sert ensuite à départager plusieurs plateformes possibles. Il ne
-peut jamais éliminer le seul réseau réellement observé auprès du persona.
-CAP n’utilise ni note sur 100, ni pondération, ni mode d’usage exclusif attribué
-à une plateforme.
+Si la recherche est indisponible, CAP termine le diagnostic avec les données du cabinet et son référentiel interne. Cette limite est explicitement indiquée dans le résultat et dans la synthèse PDF.
 
-Si plusieurs plateformes restent au même niveau, les moyens du cabinet peuvent
-les départager. Si l’égalité demeure, CAP recommande toutes les plateformes
-équivalentes. Le cabinet en retient ensuite une pour le lancement. La synthèse
-distingue ce choix uniquement lorsqu’une égalité a réellement été reconnue.
+## Synthèse PDF
 
-Les résultats déjà obtenus et l’état actif ou inactif d’un compte n’entrent pas
-dans le moteur de recommandation.
+La synthèse contient notamment :
 
-## Faisabilité
+- le persona, le besoin et l'objectif SMART ;
+- les réseaux observés et les sources renseignées ;
+- la plateforme prioritaire et la plateforme complémentaire éventuelle ;
+- les raisons du choix et de la non-priorisation des autres plateformes ;
+- les informations publiques mobilisées et leur date ;
+- les formats, compétences, matériel, responsables, appuis et budget ;
+- le contrôle complet de la faisabilité ;
+- les actions à réaliser avant le lancement.
 
-Les moyens ne remplacent jamais une plateforme stratégiquement supérieure. Ils
-interviennent seulement après la comparaison stratégique ou pour départager une
-égalité.
-
-La faisabilité porte sur cinq éléments :
-
-- le temps disponible ;
-- les formats et les compétences ;
-- le matériel ;
-- le responsable ;
-- le budget.
-
-Une ligne verte est prête. Une ligne orange impose une préparation. Une ligne
-rouge reporte le lancement sans changer la plateforme recommandée.
-
-Une compétence manquante ne bloque pas le diagnostic. Une autoformation, une
-formation, un appui interne ou un prestataire peut être prévu. Un smartphone
-peut suffire pour débuter ; une caméra ou une ring light ne sont pas rendues
-artificiellement obligatoires. Plusieurs responsables peuvent être désignés.
-
-## Interface et synthèse
-
-Les questions sur les moyens restent neutres et ne révèlent pas la plateforme
-avant le résultat. Le récapitulatif ne comporte pas de bouton « Précédent ».
-L’écran final reste épuré ; les motifs, les constats et les actions figurent
-dans la synthèse PDF.
-
-Les guides Facebook, Instagram, TikTok et YouTube seront ajoutés dans le dossier
-`guides` après leur validation.
-
-## Lancement local
+## Installation
 
 ```bash
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
@@ -90,6 +52,11 @@ streamlit run app.py
 python -m unittest discover -s tests -v
 ```
 
-La suite comprend 321 tests : 275 scénarios de décision croisant les personas,
-les objectifs et les situations réseau, ainsi que des tests du moteur, de la
-faisabilité, de l’interface et de l’export PDF.
+La recette automatisée comprend 331 tests. Dans l'environnement de préparation, 322 tests ont été exécutés avec succès et 9 tests d'interface Streamlit ont été ignorés parce que Streamlit n'y était pas installé.
+
+## Limites
+
+- la recherche publique dépend de l'accessibilité du moteur de recherche et des pages indexées ;
+- les résultats publics ne constituent pas une analyse exhaustive des plateformes ;
+- CAP n'effectue aucun démarchage, aucun envoi de message et aucune collecte de données personnelles ;
+- la recommandation reste une aide à la décision à interpréter dans le respect des règles déontologiques de la profession.

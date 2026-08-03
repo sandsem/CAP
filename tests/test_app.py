@@ -35,9 +35,21 @@ class InterfaceRegressionTests(unittest.TestCase):
 
         self.assertIn("Autre", PILOT_OPTIONS)
 
-    def test_redundant_known_network_row_is_not_displayed(self):
-        self.assertNotIn('("Réseaux connus :",', self.source)
-        self.assertNotIn('Paragraph("Réseaux connus"', self.pdf_source)
+    def test_all_observed_networks_are_displayed_in_review(self):
+        self.assertIn('("Réseaux observés :",', self.source)
+
+    def test_external_research_runs_inside_analysis_without_new_screen(self):
+        self.assertIn("cached_external_research", self.source)
+        self.assertIn("research_platforms", self.source)
+        self.assertNotIn('"research":', self.source)
+
+    def test_manual_tie_choice_is_removed(self):
+        self.assertNotIn("Quelle plateforme le cabinet retient-il", self.source)
+        self.assertNotIn("retain_", self.source)
+
+    def test_feasibility_remains_in_pdf(self):
+        self.assertIn("Contrôle de la faisabilité", self.pdf_source)
+        self.assertIn("feasibility_label", self.pdf_source)
 
     def test_reference_base_is_not_announced_in_the_questionnaire(self):
         self.assertNotIn("CAP utilisera sa base de référence", self.source)
@@ -58,13 +70,13 @@ class AppSmokeTests(unittest.TestCase):
         self.assertEqual(len(app.exception), 0)
         self.assertIn("Commencer", [button.label for button in app.button])
 
-    def test_target_has_no_platform_usage_questions(self):
+    def test_target_has_no_detailed_behaviour_study(self):
         app = self._app("target", base_answers())
         self.assertEqual(len(app.exception), 0)
         labels = [item.label for item in list(app.radio) + list(app.selectbox) + list(app.text_input)]
         text = " ".join(labels)
         self.assertNotIn("comment ce persona recherche", text.lower())
-        self.assertNotIn("usage observé", text.lower())
+        self.assertNotIn("fréquence d’utilisation", text.lower())
 
     def test_undefined_persona_stops_the_target_step(self):
         answers = base_answers()

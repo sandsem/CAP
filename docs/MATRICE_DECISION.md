@@ -1,112 +1,89 @@
-# Grille de décision CAP
+# Matrice de décision CAP - V14 ajustée
 
-## 1. Conditions d’entrée
+## Principe général
 
-Un diagnostic porte sur un seul persona, un seul besoin d’information
-prioritaire et un seul objectif. Le persona, l’indicateur, la valeur attendue et
-l’échéance doivent être renseignés avant de poursuivre.
+CAP n'est pas un calculateur de notes affichées à l'utilisateur. Il applique une hiérarchie de règles explicites et compare systématiquement Facebook, Instagram, TikTok et YouTube.
 
-Lorsque les réseaux utilisés par le persona sont connus, le cabinet doit
-indiquer une source et confirmer que l’information est récente et fiable. Sans
-ces éléments, aucune recommandation n’est produite.
+## Données d'entrée
 
-## 2. Première sélection des plateformes
+- persona ;
+- besoin d'information prioritaire ;
+- réseaux éventuellement observés et sources utilisées ;
+- objectif SMART ;
+- temps disponible ;
+- formats envisageables ;
+- compétences et aisance face caméra ;
+- matériel ;
+- responsable(s) ;
+- appui ou formation ;
+- budget.
 
-### Réseaux utilisés par le persona
+## Recherche externe
 
-- Un seul réseau connu : ce réseau est retenu.
-- Plusieurs réseaux et un réseau privilégié connu : le réseau le plus souvent
-  utilisé pour rechercher l’information est retenu.
-- Plusieurs réseaux sans priorité connue : tous restent comparés.
+CAP formule des requêtes à partir du persona et du besoin. Il recherche des contenus publics indexés pour chaque plateforme et classe les signaux comme forts, modérés, faibles ou indisponibles.
 
-L’objectif ne peut pas éliminer un réseau réellement observé lorsqu’il est le
-seul renseigné.
+La recherche :
 
-### Réseaux inconnus
+- ne collecte aucune donnée personnelle ;
+- ne recherche aucun prospect à contacter ;
+- ne déclenche aucun message ;
+- ne remplace pas les observations du cabinet ;
+- est datée et citée dans la synthèse.
 
-CAP utilise la base de référence suivante, datée du 31 juillet 2026 :
+## Sélection stratégique
 
-| Persona | Plateformes de référence |
-|---|---|
-| Créateur d’entreprise | YouTube, Instagram, TikTok |
-| Micro-entrepreneur | Instagram, Facebook, TikTok |
-| Artisan / commerçant / restaurateur | Facebook, Instagram, TikTok |
-| Dirigeant TPE-PME | YouTube, Facebook, Instagram |
-| Start-up | Instagram, TikTok, YouTube |
-| Profession libérale / Freelance | Instagram, YouTube, TikTok |
-| Association / Secteur non-marchand | Facebook, Instagram, YouTube |
-| Jeune talent / étudiant | TikTok, Instagram, YouTube |
-| Jeune particulier / premier projet patrimonial | TikTok, Instagram, YouTube |
-| Particulier / retraite ou transmission patrimoniale | YouTube, Facebook, Instagram |
-| Autre | Les quatre plateformes restent comparées |
+Pour chaque plateforme, CAP examine :
 
-Cette base fournit des orientations et non des certitudes individuelles. Elle
-doit être actualisée à partir de sources récentes.
+1. la cohérence avec la cible ;
+2. la cohérence avec le besoin prioritaire ;
+3. la cohérence avec l'objectif ;
+4. les réseaux observés par le cabinet ;
+5. les signaux publics trouvés.
 
-## 3. Départage par l’objectif
+Un réseau observé constitue une preuve favorable, mais ne gagne pas automatiquement.
 
-Toutes les plateformes peuvent contribuer à plusieurs objectifs. Les priorités
-ci-dessous ne servent qu’à départager plusieurs réseaux possibles.
+## Intervention des moyens
 
-| Objectif | Plateformes prioritaires pour le départage |
-|---|---|
-| Visibilité et notoriété | Instagram, TikTok |
-| Acquisition | Facebook, Instagram, TikTok, YouTube |
-| Expertise et conseil | YouTube |
-| Recrutement | Instagram, TikTok |
-| Fidélisation | Facebook, Instagram |
-| Autre | Aucun classement automatique |
+### Plateforme nettement supérieure
 
-CAP n’attribue pas un usage exclusif à chaque plateforme. La recherche, la
-recommandation et le suivi de comptes peuvent coexister sur plusieurs réseaux.
-Les résultats déjà obtenus et l’état du compte sont également exclus du calcul.
+Elle reste prioritaire. Un manque de format, de compétence, de matériel, de temps ou de responsable modifie alors la faisabilité : le lancement peut être préparé ou reporté.
 
-### Indicateur lié à l’objectif
+### Plateformes stratégiquement proches
 
-L’indicateur ne choisit pas la plateforme. Il sert à mesurer le résultat de la
-communication. La liste affichée dépend donc de l’objectif retenu :
+Les moyens peuvent les départager. CAP compare alors notamment :
 
-| Objectif | Indicateurs proposés |
-|---|---|
-| Visibilité et notoriété | Portée, visites, interactions, enregistrements ou partages |
-| Acquisition | Demandes de contact, rendez-vous, lettres de mission, chiffre d’affaires |
-| Expertise et conseil | Visites, interactions, enregistrements ou partages, demandes de contact |
-| Recrutement | Candidatures, entretiens de recrutement |
-| Fidélisation | Interactions, demandes de clients existants |
+- la présence d'un format structurant ;
+- la possibilité de produire au moins un second format complémentaire ;
+- les compétences ;
+- le temps ;
+- le matériel ;
+- le responsable ;
+- le budget.
 
-Un indicateur libre reste possible. En revanche, un indicateur connu mais sans
-lien avec l’objectif bloque l’analyse. Une candidature reçue ne peut donc pas
-mesurer un objectif d’acquisition de clients.
+### Format vidéo
 
-## 4. Départage par les moyens
+L'absence d'aisance face caméra ne signifie pas que la vidéo est impossible. CAP admet la voix off, les captures d'écran, les visuels animés et les textes incrustés.
 
-Les moyens interviennent uniquement lorsque plusieurs plateformes restent
-équivalentes sur le plan stratégique. Pour chacune, CAP vérifie si au moins un
-format choisi est utilisable et si les moyens nécessaires sont disponibles.
+Pour TikTok et YouTube, l'absence de tout format vidéo conduit au minimum à un lancement à préparer. CAP recommande alors une formation ou un apprentissage avant le démarrage.
 
-| Couleur | Conséquence |
-|---|---|
-| Vert | Le point est prêt |
-| Orange | Une préparation est nécessaire |
-| Rouge | Le lancement doit être reporté |
+## Plateforme prioritaire et complémentaire
 
-Les cinq points vérifiés sont le temps, les formats et compétences, le
-matériel, le responsable et le budget. Une compétence manquante peut être
-compensée par une solution planifiée. Elle ne rend jamais le diagnostic
-impossible.
+CAP désigne toujours une seule plateforme prioritaire. Il ne demande plus au cabinet de résoudre une égalité.
 
-## 5. Égalité finale
+Une plateforme complémentaire n'est proposée que si :
 
-Si une plateforme présente une meilleure faisabilité parmi des plateformes
-stratégiquement équivalentes, elle est recommandée. Si plusieurs plateformes
-restent strictement au même niveau, CAP les recommande ensemble. Le cabinet en
-retient une pour le lancement. Le PDF affiche séparément :
+- elle reste stratégiquement proche ;
+- elle apporte une fonction différente ;
+- les contenus principaux peuvent y être adaptés ;
+- le cabinet dispose d'au moins six heures mensuelles ;
+- elle ne présente pas de blocage opérationnel majeur.
 
-- les plateformes recommandées par CAP ;
-- la plateforme retenue par le cabinet.
+À défaut, CAP recommande une seule plateforme.
 
-## 6. Résultat
+## Faisabilité
 
-La plateforme recommandée reste inchangée lorsque les moyens sont insuffisants.
-Seule la date de lancement est affectée : `Projet prêt`, `Lancement à préparer`
-ou `Lancement à reporter`.
+- **Projet prêt** : les conditions nécessaires sont réunies.
+- **Lancement à préparer** : un ajustement ou une formation est nécessaire avant la première publication.
+- **Lancement à reporter** : un élément indispensable manque et aucune mise en œuvre immédiate n'est possible.
+
+La faisabilité ne remplace jamais la recommandation stratégique. Elle indique dans quelles conditions la plateforme retenue peut être lancée.

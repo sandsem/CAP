@@ -1,57 +1,24 @@
-# Fiche unique des modifications de CAP
+# Fiche unique des modifications - CAP V14 ajustée
 
-Version consolidée du moteur et de l’interface après validation de la section 2.
-
-| N° | Décision définitive | État | Mise en œuvre |
+| N° | Décision validée | Statut | Mise en œuvre |
 |---:|---|---|---|
-| 1 | Limiter un diagnostic à un seul persona | Intégrée | Un seul choix est possible ; un autre public impose un nouveau diagnostic |
-| 2 | Conserver le besoin prioritaire sans lui faire choisir la plateforme | Intégrée | Le besoin précise le sujet des contenus et figure dans la synthèse |
-| 3 | Demander d’abord si les réseaux utilisés sont connus | Intégrée | Trois réponses exclusives : oui, je ne sais pas, aucun de Facebook, Instagram, TikTok ou YouTube |
-| 4 | Empêcher les combinaisons incohérentes avec « Je ne sais pas » | Intégrée | La structure de la question rend la combinaison impossible |
-| 5 | Exiger une source lorsque le cabinet affirme connaître les réseaux | Intégrée | Sans source, l’utilisateur ne peut pas poursuivre |
-| 6 | Utiliser une vérification binaire des informations | Intégrée | Question simple : informations récentes et fiables, oui ou non |
-| 7 | Supprimer les usages attribués séparément à chaque plateforme | Intégrée | Aucun réseau n’est écarté parce qu’un usage exclusif lui aurait été attribué |
-| 8 | Utiliser le réseau réel du persona avant la base générale | Intégrée | Un réseau observé est prioritaire sur les correspondances de référence |
-| 9 | Demander le réseau utilisé le plus souvent lorsque plusieurs sont connus | Intégrée | Le choix est limité aux réseaux précédemment sélectionnés, plus « Je ne sais pas » |
-| 10 | Ajouter une base de référence lorsque les réseaux sont inconnus | Intégrée | Onze profils sont associés à plusieurs plateformes probables |
-| 11 | Dater et documenter la base de référence | Intégrée | Date inscrite : 31 juillet 2026 ; actualisation périodique prévue |
-| 12 | Supprimer les notes sur 100 et les pondérations | Intégrée | Le moteur applique un ordre de décision explicite, sans score artificiel |
-| 13 | Conserver les cinq objectifs validés | Intégrée | Visibilité et notoriété, acquisition, expertise et conseil, recrutement, fidélisation |
-| 14 | Autoriser un objectif « Autre » | Intégrée | L’objectif libre est décrit, mais ne classe pas automatiquement les réseaux |
-| 15 | Bloquer un objectif non défini | Intégrée | Les champs SMART restent masqués et le passage à l’étape suivante est impossible |
-| 16 | Simplifier les indicateurs | Intégrée | Onze indicateurs concrets et un indicateur libre, filtrés selon l’objectif |
-| 17 | Ne jamais éliminer le seul réseau observé à cause de l’objectif | Intégrée | L’objectif sert à départager, pas à nier une donnée réelle |
-| 18 | Supprimer les résultats déjà obtenus du moteur | Intégrée | L’ancienne étape « Résultats actuels » est retirée |
-| 19 | Supprimer l’état actif ou inactif du compte du calcul | Intégrée | Aucun statut de compte n’influence la recommandation |
-| 20 | Ramener le questionnaire à trois étapes | Intégrée | Cible, objectif, moyens |
-| 21 | Ne pas révéler la plateforme dans l’étape des moyens | Intégrée | Les formats proposés sont génériques |
-| 22 | Vérifier seulement les compétences utiles aux formats choisis | Intégrée | Les questions de compétence sont générées à partir des formats |
-| 23 | Rendre la présence à l’écran conditionnelle | Intégrée | La question apparaît seulement pour la vidéo ou le Live |
-| 24 | Permettre de compenser une compétence manquante | Intégrée | Autoformation, formation, appui interne ou prestataire externe |
-| 25 | Vérifier que la solution de compétence est réellement prévue | Intégrée | Une question oui/non apparaît pour chaque solution choisie |
-| 26 | Empêcher « Aucun matériel » avec un autre équipement | Intégrée | Une question préalable sépare les deux situations |
-| 27 | Ne pas rendre une caméra ou une ring light indispensable | Intégrée | Un smartphone peut suffire selon le format |
-| 28 | Clarifier le responsable | Intégrée | Plusieurs responsables peuvent être sélectionnés ; l’absence de responsable reste une situation distincte |
-| 29 | Simplifier le budget | Intégrée | Dépense oui/non, puis budget validé oui/non si nécessaire |
-| 30 | Séparer stratégie et faisabilité | Intégrée | Les moyens ne remplacent jamais un meilleur choix stratégique |
-| 31 | Utiliser les moyens uniquement pour départager une égalité | Intégrée | Comparaison de faisabilité entre plateformes stratégiquement équivalentes |
-| 32 | Conserver la plateforme malgré un manque de moyens | Intégrée | Le manque reporte le lancement sans modifier la cohérence stratégique |
-| 33 | Reconnaître une égalité parfaite | Intégrée | CAP recommande toutes les plateformes encore équivalentes |
-| 34 | Séparer recommandation CAP et choix du cabinet | Intégrée | L’utilisateur retient une plateforme ; les deux informations figurent dans le PDF |
-| 35 | Supprimer le bouton « Précédent » du récapitulatif et du résultat | Intégrée | Le récapitulatif propose des boutons de modification ; le résultat propose de recommencer |
-| 36 | Épurer l’écran final | Intégrée | Résultat, choix éventuel en cas d’égalité, synthèse, guide et recommencement |
-| 37 | Maintenir l’export PDF avec lignes colorées | Intégrée | Les constats de faisabilité sont regroupés par couleur sans colonne d’état |
-| 38 | Réserver les guides aux versions validées | En attente | Les emplacements existent ; les quatre PDF définitifs restent à fournir |
-| 39 | Mettre à jour les textes et la documentation | Intégrée | README, grille de décision et fiche unique alignés avec le code |
-| 40 | Tester la logique par des scénarios métier | Intégrée | 321 tests, dont 275 scénarios persona × objectif × situation réseau |
-| 41 | Supprimer l’instruction anglaise des champs de saisie | Intégrée | « Press Enter to apply » est masqué dans toute l’interface |
-| 42 | Uniformiser les menus déroulants | Intégrée | Les listes ouvertes utilisent un fond noir et un texte blanc |
-| 43 | Nommer les quatre plateformes dans la réponse hors périmètre | Intégrée | Facebook, Instagram, TikTok et YouTube sont indiqués directement |
-| 44 | Afficher le logo dans la synthèse | Intégrée | Le nom CAP isolé est remplacé par une version vectorielle du logo |
-| 45 | Supprimer les répétitions du résultat PDF | Intégrée | Le PDF affiche la recommandation, l’élément déterminant et la faisabilité ; le choix du cabinet n’apparaît qu’en cas d’égalité réelle |
-| 46 | Prévoir un responsable non listé | Intégrée | L’option « Autre » ouvre un champ permettant de préciser la personne concernée |
-| 47 | Alléger les données de décision | Intégrée | La ligne redondante « Réseaux connus » est retirée du récapitulatif et du PDF |
-| 48 | Arrêter le diagnostic si le persona n’est pas défini | Intégrée | Seule l’alerte « Finalisez le persona avant de continuer » reste affichée ; les autres questions sont masquées |
-| 49 | Ne pas exposer le fonctionnement interne dans le questionnaire | Intégrée | Le message annonçant l’utilisation de la base de référence est retiré de l’étape cible |
-| 50 | Relier l’indicateur à l’objectif | Intégrée | Chaque objectif affiche uniquement des indicateurs cohérents et le moteur refuse une ancienne combinaison incompatible |
-| 51 | Mettre en valeur les actions dans la synthèse | Intégrée | Les actions sont regroupées dans un encadré gris numéroté 01, 02, 03 |
+| 1 | Conserver l'architecture visuelle de la V13 | Intégrée | Aucun écran ajouté ou déplacé. |
+| 2 | Exploiter réellement le besoin prioritaire | Intégrée | Le besoin est classé par fonction et participe au choix. |
+| 3 | Comparer systématiquement les quatre plateformes | Intégrée | Facebook, Instagram, TikTok et YouTube sont toujours examinés. |
+| 4 | Utiliser les réseaux observés comme indices, non comme réponse automatique | Intégrée | Un réseau déclaré peut être dépassé par une plateforme plus cohérente. |
+| 5 | Ajouter une recherche publique actualisée | Intégrée | Recherche de pages publiques indexées pendant l'analyse. |
+| 6 | Exclure toute collecte de données personnelles et tout démarchage | Intégrée | Aucun prospect, aucune coordonnée et aucun message ne sont recherchés ou générés. |
+| 7 | Prévoir un repli transparent si Internet est indisponible | Intégrée | Le référentiel interne est utilisé et la limite est affichée. |
+| 8 | Faire intervenir les moyens dans l'arbitrage | Intégrée | Ils départagent les plateformes stratégiquement proches. |
+| 9 | Conserver une plateforme nettement supérieure malgré un manque de moyen | Intégrée | La recommandation reste, mais le lancement est préparé ou reporté. |
+| 10 | Exiger un format structurant et un second format complémentaire | Intégrée | Une stratégie limitée à un seul format déclenche une préparation. |
+| 11 | Ne pas assimiler vidéo et face caméra | Intégrée | Voix off, capture d'écran et visuels animés sont admis. |
+| 12 | Toujours produire une seule plateforme prioritaire | Intégrée | Les égalités exposées et le choix manuel ont été supprimés. |
+| 13 | Rendre la plateforme complémentaire exceptionnelle | Intégrée | Elle suppose proximité stratégique, réutilisation des contenus et capacité suffisante. |
+| 14 | Maintenir la faisabilité dans la synthèse | Intégrée | Statut, tableau par critère et actions sont conservés. |
+| 15 | Conserver les statuts compréhensibles | Intégrée | Projet prêt / Lancement à préparer / Lancement à reporter. |
+| 16 | Présenter tous les réseaux observés dans le récapitulatif | Intégrée | La liste complète est affichée. |
+| 17 | Enrichir la synthèse PDF | Intégrée | Besoin, recherche, alternatives, moyens, acteurs et faisabilité sont détaillés. |
+| 18 | Conserver le téléchargement du guide principal | Intégrée | Le guide correspond à la plateforme prioritaire. |
+| 19 | Renforcer le contrôle SMART | Intégrée | Résultat et échéance doivent être supérieurs à zéro. |
+| 20 | Tester le nouveau moteur | Intégrée | 331 tests recensés, dont 275 scénarios métier. |

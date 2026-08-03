@@ -1,7 +1,13 @@
 import unittest
 
-from config import OUT_OF_SCOPE_NETWORK
-from scoring import compare_platforms, evaluate, required_skills_for_formats, strategic_control
+from config import OUT_OF_SCOPE_NETWORK, PLATFORM_NAMES
+from scoring import (
+    classify_need,
+    compare_platforms,
+    evaluate,
+    required_skills_for_formats,
+    strategic_control,
+)
 
 
 def base_answers():
@@ -20,7 +26,7 @@ def base_answers():
         "target": "10",
         "deadline": "8 mois",
         "q8": "6 à 10 h",
-        "q14": ["Carrousel"],
+        "q14": ["Photo", "Carrousel"],
         "q16": "Non",
         "q9": {
             "Rédaction / script": "Autonome",
@@ -36,42 +42,139 @@ def base_answers():
     }
 
 
+def fake_research(signals=None):
+    signals = signals or {}
+    return {
+        "status": "live",
+        "searched_at": "03/08/2026 00:30",
+        "note": "Signal documentaire public.",
+        "sources": [],
+        "platforms": {
+            platform: {
+                "signal": signals.get(platform, "faible"),
+                "result_count": 1 if signals.get(platform) else 0,
+                "sources": [],
+            }
+            for platform in PLATFORM_NAMES
+        },
+    }
+
+
 class StrategicTests(unittest.TestCase):
-    def test_known_preferred_network_wins(self):
-        result = evaluate(base_answers())
-        self.assertEqual(result["winner"], "Instagram")
-        self.assertEqual(result["tie_break"], "réseau le plus souvent utilisé par le persona")
+    def test_need_is_interpreted(self):
+        analysis = classify_need("Passer du statut de micro-entrepreneur à une société")
+        self.assertEqual(analysis["category"], "explication approfondie")
+        self.assertEqual(analysis["platforms"][0], "YouTube")
 
-    def test_single_observed_network_is_never_removed_by_objective(self):
-        answers = base_answers()
-        answers.update({"q4": ["TikTok"], "q4_priority": "TikTok", "q6": "Expertise et conseil"})
-        self.assertEqual(compare_platforms(answers)["winner"], "TikTok")
-
-    def test_unknown_network_uses_persona_reference(self):
+    def test_observed_network_is_evidence_not_automatic_winner(self):
         answers = base_answers()
         answers.update({
-            "q4": ["Je ne sais pas"], "q4_priority": "Je ne sais pas",
-            "q5": [], "q5_quality": None, "q6": "Expertise et conseil",
+            "q2": ["Micro-entrepreneur"],
+            "priority_need": "Passer du statut de micro-entrepreneur à une société",
+            "q4": ["Instagram"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Expertise et conseil",
+            "indicator": "Enregistrements ou partages des contenus",
         })
-        selection = compare_platforms(answers)
-        self.assertEqual(selection["winner"], "YouTube")
-        self.assertEqual(selection["candidate_basis"], "base de référence du persona")
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "YouTube")
 
-    def test_acquisition_does_not_artificially_exclude_a_platform(self):
+    def test_clear_strategic_winner_remains_despite_missing_video(self):
         answers = base_answers()
-        answers.update({"q4": ["Facebook", "YouTube"], "q4_priority": "Je ne sais pas"})
-        selection = compare_platforms(answers)
-        self.assertEqual(set(selection["tied_platforms"]), {"Facebook", "YouTube"})
+        answers.update({
+            "q2": ["Micro-entrepreneur"],
+            "priority_need": "Passer du statut de micro-entrepreneur à une société",
+            "q4": ["Instagram"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Expertise et conseil",
+            "indicator": "Enregistrements ou partages des contenus",
+            "q14": ["Carrousel"],
+        })
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "YouTube")
+        self.assertEqual(result["feasibility_label"], "Lancement à préparer")
+        self.assertIn("Se former", " ".join(result["launch_actions"]))
 
-    def test_results_and_account_status_are_ignored(self):
+    def test_means_break_close_instagram_tiktok_choice(self):
         answers = base_answers()
-        answers["q7"] = {"TikTok": "Contacts obtenus", "Instagram": "Aucun résultat"}
-        self.assertEqual(compare_platforms(answers)["winner"], "Instagram")
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram", "TikTok"],
+            "q4_priority": "Je ne sais pas",
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Photo", "Carrousel"],
+        })
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Instagram")
+        self.assertEqual(result["tie_break"], "moyens du cabinet")
 
-    def test_per_platform_usage_is_ignored(self):
+    def test_external_research_breaks_equal_readiness(self):
         answers = base_answers()
-        answers["q4_modes_by_network"] = {"Instagram": "Recherche", "TikTok": "Recherche"}
-        self.assertEqual(compare_platforms(answers)["winner"], "Instagram")
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Je ne sais pas"],
+            "q4_priority": "Je ne sais pas",
+            "q5": [],
+            "q5_quality": None,
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Carrousel", "Vidéo courte"],
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Création de visuels": "Autonome",
+                "Montage vidéo": "Autonome",
+            },
+        })
+        result = evaluate(answers, fake_research({"TikTok": "fort", "Instagram": "faible"}))
+        self.assertEqual(result["winner"], "TikTok")
+        self.assertEqual(result["tie_break"], "recherche externe")
+
+    def test_cap_always_returns_one_primary_platform(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Créateur d’entreprise"],
+            "q4": ["Je ne sais pas"],
+            "q4_priority": "Je ne sais pas",
+            "q5": [],
+            "q5_quality": None,
+            "q6": "Acquisition",
+        })
+        result = evaluate(answers)
+        self.assertIn(result["winner"], PLATFORM_NAMES)
+        self.assertEqual(result["recommended_platforms"], [result["winner"]])
+        self.assertIsNone(result["retained_platform"])
+
+    def test_complement_is_not_automatic(self):
+        answers = base_answers()
+        answers["q8"] = "2 à 5 h"
+        result = evaluate(answers)
+        self.assertIsNone(result["complementary_platform"])
+
+    def test_complement_requires_content_reuse_and_capacity(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram", "TikTok"],
+            "q4_priority": "Je ne sais pas",
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Carrousel", "Vidéo courte"],
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Création de visuels": "Autonome",
+                "Montage vidéo": "Autonome",
+            },
+            "q8": "6 à 10 h",
+        })
+        result = evaluate(answers, fake_research({"Instagram": "fort", "TikTok": "modéré"}))
+        self.assertEqual(result["winner"], "Instagram")
+        self.assertEqual(result["complementary_platform"], "TikTok")
 
     def test_missing_source_blocks_known_network(self):
         answers = base_answers()
@@ -100,6 +203,16 @@ class StrategicTests(unittest.TestCase):
         self.assertEqual(control["status"], "Recommandation impossible")
         self.assertIn("indicateur directement lié", " ".join(control["blocking"]))
 
+    def test_zero_target_is_rejected(self):
+        answers = base_answers()
+        answers["target"] = "0"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_zero_deadline_is_rejected(self):
+        answers = base_answers()
+        answers["deadline"] = "0 mois"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
     def test_custom_objective_is_allowed_when_described(self):
         answers = base_answers()
         answers.update({"q6": "Autre", "custom_objective": "Développer les partenariats locaux"})
@@ -120,33 +233,6 @@ class StrategicTests(unittest.TestCase):
         answers["q4"] = ["TikTok", "Je ne sais pas"]
         self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
 
-    def test_perfect_tie_is_reported_not_forced(self):
-        answers = base_answers()
-        answers.update({
-            "q2": ["Créateur d’entreprise"],
-            "q4": ["Je ne sais pas"], "q4_priority": "Je ne sais pas",
-            "q5": [], "q5_quality": None, "q6": "Acquisition",
-        })
-        result = evaluate(answers)
-        self.assertIsNone(result["winner"])
-        self.assertEqual(set(result["recommended_platforms"]), {"Instagram", "TikTok"})
-
-    def test_cabinet_choice_is_separate_from_cap_recommendation(self):
-        answers = base_answers()
-        answers.update({
-            "q2": ["Créateur d’entreprise"],
-            "q4": ["Je ne sais pas"], "q4_priority": "Je ne sais pas",
-            "q5": [], "q5_quality": None, "q6": "Acquisition", "q15": "TikTok",
-        })
-        result = evaluate(answers)
-        self.assertEqual(set(result["recommended_platforms"]), {"Instagram", "TikTok"})
-        self.assertEqual(result["retained_platform"], "TikTok")
-
-    def test_single_recommendation_is_not_presented_as_cabinet_choice(self):
-        result = evaluate(base_answers())
-        self.assertEqual(result["winner"], "Instagram")
-        self.assertIsNone(result["retained_platform"])
-
 
 class FeasibilityTests(unittest.TestCase):
     def _row(self, result, criterion):
@@ -159,6 +245,27 @@ class FeasibilityTests(unittest.TestCase):
     def test_on_camera_video_adds_camera_skill(self):
         self.assertIn("Aisance face caméra", required_skills_for_formats(["Vidéo courte"], True))
 
+    def test_no_face_camera_does_not_prevent_video(self):
+        answers = base_answers()
+        answers.update({
+            "q14": ["Vidéo courte", "Carrousel"],
+            "q16": "Non",
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Montage vidéo": "Autonome",
+                "Création de visuels": "Autonome",
+            },
+        })
+        result = evaluate(answers)
+        self.assertNotIn("Aisance face caméra", self._row(result, "Formats et compétences")["observation"])
+
+    def test_one_format_requires_preparation(self):
+        answers = base_answers()
+        answers["q14"] = ["Carrousel"]
+        result = evaluate(answers)
+        self.assertEqual(self._row(result, "Formats et compétences")["status"], "orange")
+        self.assertIn("second format", self._row(result, "Formats et compétences")["action"])
+
     def test_missing_skill_with_confirmed_training_is_orange(self):
         answers = base_answers()
         answers["q9"]["Création de visuels"] = "À acquérir"
@@ -166,16 +273,40 @@ class FeasibilityTests(unittest.TestCase):
         result = evaluate(answers)
         self.assertEqual(self._row(result, "Formats et compétences")["status"], "orange")
 
-    def test_missing_skill_without_solution_is_red_but_keeps_platform(self):
+    def test_missing_skill_without_solution_is_red_but_keeps_clear_platform(self):
         answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+        })
         answers["q9"]["Création de visuels"] = "À acquérir"
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
         self.assertEqual(self._row(result, "Formats et compétences")["status"], "rouge")
 
-    def test_no_time_postpones_without_changing_platform(self):
+    def test_notions_require_preparation(self):
         answers = base_answers()
-        answers["q8"] = "Aucun temps disponible"
+        answers["q9"]["Création de visuels"] = "Notions"
+        result = evaluate(answers)
+        self.assertEqual(result["feasibility_label"], "Lancement à préparer")
+
+    def test_no_time_postpones_without_changing_clear_platform(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q8": "Aucun temps disponible",
+        })
         result = evaluate(answers)
         self.assertEqual(result["winner"], "Instagram")
         self.assertEqual(result["feasibility_label"], "Lancement à reporter")
@@ -212,9 +343,11 @@ class FeasibilityTests(unittest.TestCase):
     def test_another_responsible_person_is_used_when_specified(self):
         answers = base_answers()
         answers.update({"q11": ["Autre"], "custom_pilot": "La secrétaire du cabinet"})
-        responsible = self._row(evaluate(answers), "Responsable")
+        result = evaluate(answers)
+        responsible = self._row(result, "Responsable")
         self.assertEqual(responsible["status"], "vert")
         self.assertIn("La secrétaire du cabinet", responsible["observation"])
+        self.assertIn("La secrétaire du cabinet", result["actors"])
 
 
 if __name__ == "__main__":
