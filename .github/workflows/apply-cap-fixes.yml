@@ -1,6 +1,7 @@
 name: Appliquer les corrections CAP
 
 on:
+  workflow_dispatch:
   push:
     branches: [v14-candidate]
     paths: [cap_fixes.patch.gz.b64]
