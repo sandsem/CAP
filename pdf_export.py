@@ -13,7 +13,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.graphics.shapes import Circle, Drawing, Path as DrawingPath, Polygon, String
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
@@ -29,6 +29,24 @@ if REGULAR_FONT.exists() and BOLD_FONT.exists():
     FONT_REGULAR, FONT_BOLD = "CAP-Regular", "CAP-Bold"
 else:
     FONT_REGULAR, FONT_BOLD = "Helvetica", "Helvetica-Bold"
+
+
+def _safe_text(value, limit: int = 1200) -> str:
+    text = str(value or "").replace("\x00", " ").replace("\r", " ").replace("\n", " ")
+    text = " ".join(text.split())
+    if len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    words = []
+    for word in text.split(" "):
+        if len(word) > 45:
+            words.extend(word[index:index + 45] for index in range(0, len(word), 45))
+        else:
+            words.append(word)
+    return " ".join(words)
+
+
+def _escaped(value, limit: int = 1200) -> str:
+    return escape(_safe_text(value, limit))
 
 
 def _styles() -> dict:
@@ -106,18 +124,6 @@ def _cap_logo() -> Drawing:
     return drawing
 
 
-def _decision_criterion(result: dict) -> str:
-    labels = {
-        "croisement cible–besoin–objectif": "Croisement de la cible, du besoin et de l’objectif",
-        "moyens du cabinet": "Compatibilité avec les moyens du cabinet",
-        "recherche externe": "Informations publiques actualisées",
-        "données de cible": "Informations observées sur la cible",
-        "règle stable de départage": "Règle stable de départage",
-    }
-    value = result.get("tie_break") or "Croisement des critères"
-    return labels.get(value, str(value).capitalize())
-
-
 def _table(rows: list, widths: list) -> Table:
     table = Table(rows, colWidths=widths, repeatRows=1)
     table.setStyle(TableStyle([
@@ -134,8 +140,10 @@ def _table(rows: list, widths: list) -> Table:
 
 def _feasibility_table(rows: list[dict], styles: dict) -> Table:
     ordered = sorted(rows, key=lambda row: {"vert": 0, "orange": 1, "rouge": 2}.get(row["status"], 3))
+    status_labels = {"vert": "Prêt", "orange": "À préparer", "rouge": "À reporter"}
     data = [[
         Paragraph("Élément", styles["label"]),
+        Paragraph("Statut", styles["label"]),
         Paragraph("Constat", styles["label"]),
         Paragraph("Action", styles["label"]),
     ]]
@@ -144,8 +152,8 @@ def _feasibility_table(rows: list[dict], styles: dict) -> Table:
         ("BOX", (0, 0), (-1, -1), .3, colors.HexColor("#D9DCDD")),
         ("INNERGRID", (0, 0), (-1, -1), .25, colors.HexColor("#D9DCDD")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]
     backgrounds = {
         "vert": colors.HexColor("#E8F5E9"),
@@ -154,25 +162,26 @@ def _feasibility_table(rows: list[dict], styles: dict) -> Table:
     }
     for index, row in enumerate(ordered, start=1):
         data.append([
-            Paragraph(escape(row["criterion"]), styles["value"]),
-            Paragraph(escape(row["observation"]), styles["value"]),
-            Paragraph(escape(row["action"]), styles["value"]),
+            Paragraph(_escaped(row["criterion"], 100), styles["value"]),
+            Paragraph(_escaped(status_labels.get(row["status"], row["status"]), 60), styles["value"]),
+            Paragraph(_escaped(row["observation"], 900), styles["value"]),
+            Paragraph(_escaped(row["action"], 900), styles["value"]),
         ])
         commands.append(("BACKGROUND", (0, index), (-1, index), backgrounds[row["status"]]))
-    table = Table(data, colWidths=[38 * mm, 63 * mm, 63 * mm], repeatRows=1)
+    table = Table(data, colWidths=[30 * mm, 24 * mm, 53 * mm, 57 * mm], repeatRows=1)
     table.setStyle(TableStyle(commands))
     return table
 
 
 def _actions_box(actions: list[str], styles: dict, title: str, introduction: str) -> Table:
     data = [
-        [Paragraph(escape(title.upper()), styles["action_eyebrow"]), ""],
-        [Paragraph(escape(introduction), styles["body"]), ""],
+        [Paragraph(_escaped(title.upper(), 120), styles["action_eyebrow"]), ""],
+        [Paragraph(_escaped(introduction, 500), styles["body"]), ""],
     ]
     for index, action in enumerate(actions, start=1):
         data.append([
             Paragraph(f"{index:02d}", styles["action_number"]),
-            Paragraph(escape(action), styles["body"]),
+            Paragraph(_escaped(action, 900), styles["body"]),
         ])
 
     commands = [
@@ -203,8 +212,8 @@ def _join(values) -> str:
     if not values:
         return "Sans objet"
     if isinstance(values, str):
-        return values
-    return ", ".join(str(item) for item in values)
+        return _safe_text(values, 800)
+    return _safe_text(", ".join(str(item) for item in values), 800)
 
 
 def _responsibles(answers: dict) -> str:
@@ -227,6 +236,13 @@ def _competencies(answers: dict) -> str:
 
 
 def _support(answers: dict) -> str:
+    by_skill = answers.get("q12_by_skill", {})
+    if by_skill:
+        return " · ".join(
+            f"{skill} : {item.get('solution', 'Aucun appui prévu')} "
+            f"({'prévu' if item.get('confirmed') == 'Oui' else 'non confirmé'})"
+            for skill, item in by_skill.items()
+        )
     support = answers.get("q12", [])
     confirmations = answers.get("q12_confirmed", {})
     return " · ".join(
@@ -236,15 +252,19 @@ def _support(answers: dict) -> str:
 
 
 def _source_paragraph(source: dict, styles: dict) -> Paragraph:
-    title = escape(source.get("title", "Source publique"))
-    url = source.get("url", "")
-    domain = source.get("domain") or urlparse(url).netloc
-    platform = source.get("platform", "")
+    title = _escaped(source.get("title", "Source publique"), 220)
+    url = str(source.get("url", ""))
+    domain = _safe_text(source.get("domain") or urlparse(url).netloc, 120)
+    platform = _safe_text(source.get("platform", ""), 40)
+    source_type = _safe_text(source.get("source_type", "source publique"), 80)
+    authority = _safe_text(source.get("authority", "non précisée"), 60)
+    published = _safe_text(source.get("published_date", "date non disponible"), 40) or "date non disponible"
     label = f"{platform} — {title}" if platform else title
+    metadata = _escaped(f"{domain} · {source_type} · autorité {authority} · {published}", 260)
     if url.startswith("http"):
-        html = f'<link href={quoteattr(url)} color="#111111"><u>{label}</u></link> — {escape(domain)}'
+        html = f'<link href={quoteattr(url)} color="#111111"><u>{label}</u></link><br/>{metadata}'
     else:
-        html = f"{label} — {escape(domain)}"
+        html = f"{label}<br/>{metadata}"
     return Paragraph(html, styles["small"])
 
 
@@ -253,7 +273,7 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     document = SimpleDocTemplate(
         buffer, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm,
         topMargin=17 * mm, bottomMargin=17 * mm,
-        title="Synthèse CAP", author="CAP",
+        title=f"Synthèse CAP - {answers.get('cabinet_name', 'Cabinet')}", author="CAP",
     )
     styles = _styles()
 
@@ -283,33 +303,37 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         _cap_logo(),
         Spacer(1, 4),
         Paragraph("Synthèse du diagnostic", styles["subtitle"]),
-        Paragraph(escape(result_title), styles["title"]),
+        Paragraph(_escaped(result_title, 120), styles["title"]),
         Paragraph(escape(result_subtitle), styles["subtitle"]),
+        Paragraph(f"Cabinet : {_escaped(answers.get('cabinet_name', 'Non renseigné'), 100)}", styles["subtitle"]),
     ]
     if complementary:
         story.append(Paragraph(
-            f"Plateforme complémentaire éventuelle : {escape(complementary)}",
+            f"Plateforme complémentaire éventuelle : {_escaped(complementary, 60)}",
             styles["subtitle"],
         ))
 
     story.append(Paragraph("Données de décision", styles["heading"]))
-    source_text = ", ".join(answers.get("q5", [])) or "Recherche CAP et référentiel interne"
+    source_text = ", ".join(answers.get("q5", [])) or "Référentiel CAP"
+    if answers.get("custom_source_details"):
+        source_text += f" — {answers.get('custom_source_details')}"
     decision_rows = [
         [Paragraph("Élément", styles["label"]), Paragraph("Réponse", styles["label"])],
-        [Paragraph("Persona analysé", styles["label"]), Paragraph(escape(persona), styles["value"])],
-        [Paragraph("Besoin prioritaire", styles["label"]), Paragraph(escape(answers.get("priority_need", "")), styles["value"])],
-        [Paragraph("Réseaux observés", styles["label"]), Paragraph(escape(_join(observed)), styles["value"])],
-        [Paragraph("Réseau le plus souvent utilisé", styles["label"]), Paragraph(escape(answers.get("q4_priority") or "Non identifié"), styles["value"])],
-        [Paragraph("Sources renseignées", styles["label"]), Paragraph(escape(source_text), styles["value"])],
-        [Paragraph("Objectif SMART", styles["label"]), Paragraph(escape(objective_line), styles["value"])],
-        [Paragraph("Temps disponible", styles["label"]), Paragraph(escape(answers.get("q8", "")), styles["value"])],
-        [Paragraph("Formats retenus", styles["label"]), Paragraph(escape(_join(answers.get("q14", []))), styles["value"])],
-        [Paragraph("Présence à l’écran", styles["label"]), Paragraph(escape(answers.get("q16", "Sans objet")), styles["value"])],
-        [Paragraph("Compétences", styles["label"]), Paragraph(escape(_competencies(answers)), styles["value"])],
-        [Paragraph("Matériel", styles["label"]), Paragraph(escape(_join(answers.get("q10", []))), styles["value"])],
-        [Paragraph("Responsable(s)", styles["label"]), Paragraph(escape(_responsibles(answers)), styles["value"])],
-        [Paragraph("Appui ou formation", styles["label"]), Paragraph(escape(_support(answers)), styles["value"])],
-        [Paragraph("Budget", styles["label"]), Paragraph(escape(budget), styles["value"])],
+        [Paragraph("Persona analysé", styles["label"]), Paragraph(_escaped(persona, 180), styles["value"])],
+        [Paragraph("Besoin prioritaire", styles["label"]), Paragraph(_escaped(answers.get("priority_need", ""), 500), styles["value"])],
+        [Paragraph("Tranche d’âge dominante", styles["label"]), Paragraph(_escaped(answers.get("target_age_range") or "Je ne sais pas", 80), styles["value"])],
+        [Paragraph("Réseaux observés", styles["label"]), Paragraph(_escaped(_join(observed), 200), styles["value"])],
+        [Paragraph("Réseau le plus souvent utilisé", styles["label"]), Paragraph(_escaped(answers.get("q4_priority") or "Non identifié", 100), styles["value"])],
+        [Paragraph("Sources renseignées", styles["label"]), Paragraph(_escaped(source_text, 350), styles["value"])],
+        [Paragraph("Objectif SMART", styles["label"]), Paragraph(_escaped(objective_line, 500), styles["value"])],
+        [Paragraph("Temps disponible", styles["label"]), Paragraph(_escaped(answers.get("q8", ""), 80), styles["value"])],
+        [Paragraph("Formats retenus", styles["label"]), Paragraph(_escaped(_join(answers.get("q14", [])), 300), styles["value"])],
+        [Paragraph("Présence à l’écran", styles["label"]), Paragraph(_escaped(answers.get("q16", "Sans objet"), 80), styles["value"])],
+        [Paragraph("Compétences", styles["label"]), Paragraph(_escaped(_competencies(answers), 700), styles["value"])],
+        [Paragraph("Matériel", styles["label"]), Paragraph(_escaped(_join(answers.get("q10", [])), 400), styles["value"])],
+        [Paragraph("Responsable(s)", styles["label"]), Paragraph(_escaped(_responsibles(answers), 300), styles["value"])],
+        [Paragraph("Appui ou formation", styles["label"]), Paragraph(_escaped(_support(answers), 700), styles["value"])],
+        [Paragraph("Budget", styles["label"]), Paragraph(_escaped(budget, 120), styles["value"])],
     ]
     story.append(_table(decision_rows, [48 * mm, 112 * mm]))
 
@@ -317,13 +341,11 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     status_rows = [[Paragraph("Élément", styles["label"]), Paragraph("Résultat", styles["label"])]]
     if result.get("strategic_status") == "Choix validé":
         status_rows.extend([
-            [Paragraph("Plateforme prioritaire", styles["label"]), Paragraph(escape(winner or ""), styles["value"])],
-            [Paragraph("Rôle principal", styles["label"]), Paragraph(escape(result.get("comparison", {}).get(winner, {}).get("role", "")), styles["value"])],
-            [Paragraph("Plateforme complémentaire", styles["label"]), Paragraph(escape(complementary or "Aucune au lancement"), styles["value"])],
-            [Paragraph("Élément déterminant", styles["label"]), Paragraph(escape(_decision_criterion(result)), styles["value"])],
-            [Paragraph("Besoin interprété", styles["label"]), Paragraph(escape(result.get("need_analysis", {}).get("category", "")), styles["value"])],
-            [Paragraph("Faisabilité", styles["label"]), Paragraph(escape(result.get("feasibility_label", "")), styles["value"])],
-            [Paragraph("Acteurs mobilisés", styles["label"]), Paragraph(escape(_join(result.get("actors", []))), styles["value"])],
+            [Paragraph("Plateforme prioritaire", styles["label"]), Paragraph(_escaped(winner or "", 60), styles["value"])],
+            [Paragraph("Rôle principal", styles["label"]), Paragraph(_escaped(result.get("comparison", {}).get(winner, {}).get("role", ""), 300), styles["value"])],
+            [Paragraph("Plateforme complémentaire", styles["label"]), Paragraph(_escaped(complementary or "Aucune au lancement", 100), styles["value"])],
+            [Paragraph("Faisabilité", styles["label"]), Paragraph(_escaped(result.get("feasibility_label", ""), 100), styles["value"])],
+            [Paragraph("Acteurs mobilisés", styles["label"]), Paragraph(_escaped(_join(result.get("actors", [])), 300), styles["value"])],
         ])
     else:
         status_rows.append([
@@ -333,14 +355,14 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
     story.append(_table(status_rows, [58 * mm, 102 * mm]))
 
     if result.get("selection_reasons"):
-        story.append(Paragraph("Pourquoi cette recommandation ?", styles["heading"]))
+        story.append(Paragraph(f"Pourquoi CAP recommande {_escaped(winner or 'cette plateforme', 60)} ?", styles["heading"]))
         for reason in result["selection_reasons"]:
-            story.append(Paragraph(f"• {escape(reason)}", styles["body"]))
+            story.append(Paragraph(f"• {_escaped(reason, 900)}", styles["body"]))
             story.append(Spacer(1, 3))
 
     if complementary and result.get("complementary_reason"):
         story.append(Paragraph("Rôle de la plateforme complémentaire", styles["heading"]))
-        story.append(Paragraph(escape(result["complementary_reason"]), styles["body"]))
+        story.append(Paragraph(_escaped(result["complementary_reason"], 800), styles["body"]))
 
     non_priority = result.get("non_priority_reasons", {})
     if non_priority:
@@ -348,30 +370,41 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         rows = [[Paragraph("Plateforme", styles["label"]), Paragraph("Motif", styles["label"])]]
         for platform, reason in non_priority.items():
             rows.append([
-                Paragraph(escape(platform), styles["value"]),
-                Paragraph(escape(reason), styles["value"]),
+                Paragraph(_escaped(platform, 60), styles["value"]),
+                Paragraph(_escaped(reason, 600), styles["value"]),
             ])
         story.append(_table(rows, [38 * mm, 122 * mm]))
 
     research = result.get("external_research", {})
     if research:
-        story.append(Paragraph("Informations publiques mobilisées", styles["heading"]))
-        status_text = (
-            f"Recherche publique réalisée le {research.get('searched_at', '')}."
-            if research.get("status") == "live"
-            else "Recherche publique indisponible lors du diagnostic."
-        )
-        story.append(Paragraph(escape(status_text), styles["body"]))
-        story.append(Paragraph(escape(research.get("note", "")), styles["small"]))
-        sources = research.get("sources", [])
-        if sources:
-            story.append(Spacer(1, 5))
-            for source in sources:
-                story.append(_source_paragraph(source, styles))
-                story.append(Spacer(1, 2))
+        story.append(Paragraph("Vérification externe", styles["heading"]))
+        status = research.get("status", "indisponible")
+        searched_at = research.get("searched_at", "date non disponible")
+        if status == "complet":
+            winner_signal = research.get("platforms", {}).get(winner, {}).get("signal", "faible")
+            if winner_signal in {"fort", "modéré"}:
+                message = (
+                    f"Une vérification de sources publiques a été réalisée le {searched_at}. "
+                    "Elle est cohérente avec la recommandation, sans remplacer les informations fournies par le cabinet."
+                )
+            else:
+                message = (
+                    f"Une vérification de sources publiques a été réalisée le {searched_at}. "
+                    "Les résultats étaient trop généraux pour modifier la recommandation."
+                )
+        elif status in {"partiel", "insuffisant"}:
+            message = (
+                f"La vérification externe du {searched_at} était incomplète ou insuffisante. "
+                "Elle n’a pas influencé la recommandation."
+            )
+        else:
+            message = (
+                "Aucune vérification externe exploitable n’a été utilisée. "
+                "La recommandation repose sur les réponses du cabinet et les repères intégrés à CAP."
+            )
+        story.append(Paragraph(_escaped(message, 650), styles["small"]))
 
     if result.get("strategic_status") == "Choix validé":
-        story.append(PageBreak())
         story.append(Paragraph("Contrôle de la faisabilité", styles["heading"]))
         story.append(Paragraph(
             "La faisabilité ne remplace pas la recommandation stratégique. Elle indique si le cabinet peut commencer immédiatement ou doit préparer certains moyens.",
@@ -381,23 +414,27 @@ def build_summary_pdf(answers: dict, result: dict) -> bytes:
         story.append(_feasibility_table(result.get("feasibility_rows", []), styles))
         actions = result.get("launch_actions", [])
         if actions:
-            story.append(Paragraph("Actions à réaliser", styles["heading"]))
-            story.append(_actions_box(
-                actions,
-                styles,
-                "Préparation opérationnelle",
-                "Réalisez ces actions avant de commencer.",
-            ))
+            story.append(KeepTogether([
+                Paragraph("Actions à réaliser", styles["heading"]),
+                _actions_box(
+                    actions,
+                    styles,
+                    "Préparation opérationnelle",
+                    "Réalisez ces actions avant de commencer.",
+                ),
+            ]))
     else:
         actions = result.get("decision_notes", [])
         if actions:
-            story.append(Paragraph("Actions nécessaires", styles["heading"]))
-            story.append(_actions_box(
-                actions,
-                styles,
-                "À corriger",
-                "Corrigez ces éléments avant de relancer le diagnostic.",
-            ))
+            story.append(KeepTogether([
+                Paragraph("Actions nécessaires", styles["heading"]),
+                _actions_box(
+                    actions,
+                    styles,
+                    "À corriger",
+                    "Corrigez ces éléments avant de relancer le diagnostic.",
+                ),
+            ]))
 
     story.extend([
         Spacer(1, 14),

@@ -1,0 +1,12 @@
+CAP V14 candidate - rapport de tests après recette utilisateur
+Date : 3 août 2026
+
+- 366 tests recensés
+- 357 tests exécutés avec succès
+- 9 tests Streamlit interactifs ignorés localement, Streamlit n’étant pas disponible dans l’environnement d’audit
+- compilation Python réussie
+- PDF personnalisé généré et contrôlé visuellement sur 3 pages
+- scénario contradictoire de la recette : Facebook ne peut plus dépasser TikTok/YouTube grâce au seul signal externe
+- vocabulaire interne supprimé de la synthèse
+
+La recette finale reste à confirmer sur l’application Streamlit déployée.

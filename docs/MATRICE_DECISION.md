@@ -1,89 +1,122 @@
-# Matrice de décision CAP - V14 ajustée
+# Matrice de décision CAP — V14 corrigée et auditée
 
 ## Principe général
 
-CAP n'est pas un calculateur de notes affichées à l'utilisateur. Il applique une hiérarchie de règles explicites et compare systématiquement Facebook, Instagram, TikTok et YouTube.
+CAP n’affiche aucune note artificielle. Il applique une hiérarchie de règles explicites et compare systématiquement Facebook, Instagram, TikTok et YouTube.
 
-## Données d'entrée
+## Données d’entrée
 
 - persona ;
-- besoin d'information prioritaire ;
-- réseaux éventuellement observés et sources utilisées ;
+- besoin d’information prioritaire ;
+- réseaux éventuellement observés, réseau le plus souvent utilisé et sources ;
 - objectif SMART ;
 - temps disponible ;
 - formats envisageables ;
-- compétences et aisance face caméra ;
+- compétences et capacité réelle à produire ;
+- présence éventuelle à l’écran ;
 - matériel ;
 - responsable(s) ;
-- appui ou formation ;
+- appui ou formation, compétence par compétence ;
 - budget.
+
+## Contrôles avant analyse
+
+CAP bloque la recommandation lorsque :
+
+- le persona ou le besoin n’est pas défini ;
+- plusieurs personas sont mélangés ;
+- les réseaux déclarés ne sont pas accompagnés d’une source récente et fiable ;
+- l’objectif ou son indicateur est incohérent ;
+- le résultat attendu n’est pas un nombre positif ;
+- l’échéance n’est ni une durée positive avec unité ni une date future ;
+- un champ libre dépasse sa limite ;
+- un courriel, téléphone ou identifiant de dossier est détecté.
 
 ## Recherche externe
 
-CAP formule des requêtes à partir du persona et du besoin. Il recherche des contenus publics indexés pour chaque plateforme et classe les signaux comme forts, modérés, faibles ou indisponibles.
+Lorsque `TAVILY_API_KEY` est configurée, CAP exécute en parallèle une requête comparable pour chaque plateforme. Les requêtes utilisent des termes génériques issus du persona, du besoin et de l’objectif.
 
-La recherche :
+Chaque résultat est qualifié selon :
 
-- ne collecte aucune donnée personnelle ;
-- ne recherche aucun prospect à contacter ;
-- ne déclenche aucun message ;
-- ne remplace pas les observations du cabinet ;
-- est datée et citée dans la synthèse.
+- l’autorité du domaine ;
+- la concordance avec les termes du diagnostic ;
+- le score de pertinence du fournisseur ;
+- la présence d’un indice de fraîcheur.
+
+Le signal `fort`, `modéré` ou `faible` décrit la solidité documentaire trouvée. Il ne constitue pas une mesure d’audience. Il ne peut intervenir dans le départage que lorsque les quatre plateformes bénéficient d’une couverture qualifiée et comparable.
+
+Statuts :
+
+- **complet** : comparaison utilisable comme indice de départage ;
+- **partiel** : une ou plusieurs plateformes n’ont pas pu être interrogées ;
+- **insuffisant** : les recherches ont abouti, mais la couverture qualifiée est incomplète ;
+- **indisponible** : clé absente ou recherche impossible.
+
+Les trois derniers statuts restent neutres.
 
 ## Sélection stratégique
 
-Pour chaque plateforme, CAP examine :
+CAP examine successivement :
 
-1. la cohérence avec la cible ;
-2. la cohérence avec le besoin prioritaire ;
-3. la cohérence avec l'objectif ;
-4. les réseaux observés par le cabinet ;
-5. les signaux publics trouvés.
+1. la correspondance principale avec le besoin et l’objectif ;
+2. la correspondance compatible et la profondeur stratégique ;
+3. si plusieurs plateformes restent proches, leur faisabilité ;
+4. le réseau déclaré comme le plus souvent utilisé, puis les autres réseaux observés ;
+5. la recherche externe, uniquement si elle est complète ;
+6. l’ordre du référentiel du persona ;
+7. en dernier recours, l’ordre méthodologique associé à l’objectif.
 
-Un réseau observé constitue une preuve favorable, mais ne gagne pas automatiquement.
+Le dernier recours n’utilise pas l’ordre technique de la liste des plateformes.
 
 ## Intervention des moyens
 
 ### Plateforme nettement supérieure
 
-Elle reste prioritaire. Un manque de format, de compétence, de matériel, de temps ou de responsable modifie alors la faisabilité : le lancement peut être préparé ou reporté.
+Elle reste prioritaire. Un manque de format, de compétence, de matériel, de temps ou de responsable modifie la faisabilité : le lancement est préparé ou reporté.
 
 ### Plateformes stratégiquement proches
 
-Les moyens peuvent les départager. CAP compare alors notamment :
+Les moyens peuvent les départager à partir :
 
-- la présence d'un format structurant ;
-- la possibilité de produire au moins un second format complémentaire ;
-- les compétences ;
-- le temps ;
-- le matériel ;
-- le responsable ;
-- le budget.
+- du temps minimal indicatif ;
+- d’un format structurant ;
+- d’un second format compatible ;
+- des compétences ;
+- du matériel ;
+- du responsable ;
+- du budget.
 
-### Format vidéo
+### Compétences
 
-L'absence d'aisance face caméra ne signifie pas que la vidéo est impossible. CAP admet la voix off, les captures d'écran, les visuels animés et les textes incrustés.
+- **Autonome** : format réalisable ;
+- **Notions et capacité à produire un contenu simple** : lancement possible avec conseil de progression ;
+- **Notions non opérationnelles** : lancement à préparer ;
+- **À acquérir avec solution précise et confirmée** : lancement à préparer ;
+- **À acquérir sans solution** : lancement à reporter.
 
-Pour TikTok et YouTube, l'absence de tout format vidéo conduit au minimum à un lancement à préparer. CAP recommande alors une formation ou un apprentissage avant le démarrage.
+Chaque appui est rattaché à une compétence déterminée. Une formation générale ne couvre pas automatiquement toutes les compétences manquantes.
 
-## Plateforme prioritaire et complémentaire
+### Vidéo et face caméra
 
-CAP désigne toujours une seule plateforme prioritaire. Il ne demande plus au cabinet de résoudre une égalité.
+L’absence d’aisance face caméra ne rend pas la vidéo impossible. CAP admet la voix off, les captures d’écran, les visuels animés et les textes incrustés.
 
-Une plateforme complémentaire n'est proposée que si :
+## Plateforme complémentaire
 
-- elle reste stratégiquement proche ;
-- elle apporte une fonction différente ;
-- les contenus principaux peuvent y être adaptés ;
-- le cabinet dispose d'au moins six heures mensuelles ;
-- elle ne présente pas de blocage opérationnel majeur.
+CAP désigne toujours une seule plateforme prioritaire. Une plateforme complémentaire n’est proposée que si :
 
-À défaut, CAP recommande une seule plateforme.
+- elle fait partie des candidates stratégiquement proches ;
+- elle ne présente aucun blocage rouge ;
+- une paire de réutilisation est prévue ;
+- au moins un format est commun ;
+- son intérêt est documenté par une observation du cabinet ou un signal externe modéré ou fort ;
+- le temps déclaré couvre le minimum de la plateforme principale et la charge supplémentaire du relais.
+
+Le résultat précise la charge mensuelle additionnelle à reporter dans le plan de charge.
 
 ## Faisabilité
 
-- **Projet prêt** : les conditions nécessaires sont réunies.
-- **Lancement à préparer** : un ajustement ou une formation est nécessaire avant la première publication.
-- **Lancement à reporter** : un élément indispensable manque et aucune mise en œuvre immédiate n'est possible.
+- **Projet prêt** : aucune condition essentielle ne bloque le démarrage ;
+- **Lancement à préparer** : un ajustement est nécessaire avant la première publication ;
+- **Lancement à reporter** : au moins une condition indispensable n’est pas réunie.
 
-La faisabilité ne remplace jamais la recommandation stratégique. Elle indique dans quelles conditions la plateforme retenue peut être lancée.
+La faisabilité ne remplace jamais la recommandation stratégique.

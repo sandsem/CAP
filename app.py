@@ -1,9 +1,12 @@
 from html import escape
 from pathlib import Path
+import re
+import unicodedata
 
 import streamlit as st
 
 from config import (
+    AGE_RANGE_OPTIONS,
     APP_SUPPORT_OPTIONS,
     COMPETENCY_LEVELS,
     EVIDENCE_QUALITY_OPTIONS,
@@ -11,6 +14,13 @@ from config import (
     GENERIC_FORMATS,
     INDICATOR_OPTIONS,
     INDICATORS_BY_OBJECTIVE,
+    MAX_CABINET_NAME_LENGTH,
+    MAX_INDICATOR_LENGTH,
+    MAX_NEED_LENGTH,
+    MAX_OBJECTIVE_LENGTH,
+    MAX_PILOT_LENGTH,
+    MAX_PROFILE_LENGTH,
+    MAX_SOURCE_DETAIL_LENGTH,
     OBJECTIVE_OPTIONS,
     NO_PILOT,
     OUT_OF_SCOPE_NETWORK,
@@ -25,11 +35,29 @@ from config import (
 )
 from pdf_export import build_summary_pdf
 from research import research_platforms
-from scoring import evaluate, required_skills_for_formats
+from scoring import (
+    contains_sensitive_pattern,
+    evaluate,
+    required_skills_for_formats,
+    validate_deadline_value,
+    validate_target_value,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "logo_cap.svg"
+
+
+def _safe_filename_component(value: str) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_")
+    return text[:60] or "cabinet"
+
+
+def _summary_filename(answers: dict) -> str:
+    cabinet = _safe_filename_component(answers.get("cabinet_name", "cabinet"))
+    return f"synthese_CAP_{cabinet}.pdf"
 
 st.set_page_config(
     page_title="CAP — Choix de plateforme",
@@ -39,10 +67,13 @@ st.set_page_config(
 )
 
 
-@st.cache_data(ttl=21600, show_spinner=False)
-def cached_external_research(answers: dict) -> dict:
-    """Recherche publique mise en cache pour limiter les requêtes répétées."""
-    return research_platforms(answers)
+def external_research(answers: dict) -> dict:
+    """Lance une recherche sans cache global de données textuelles libres."""
+    try:
+        api_key = str(st.secrets.get("TAVILY_API_KEY", "")).strip()
+    except Exception:
+        api_key = ""
+    return research_platforms(answers, api_key=api_key or None)
 
 
 def inject_css() -> None:
@@ -149,7 +180,7 @@ def navigate(screen: str) -> None:
 
 def reset_diagnostic() -> None:
     for key in list(st.session_state):
-        if key.startswith(("target_", "objective_", "resources_", "skill_", "support_")):
+        if key.startswith(("target_", "objective_", "resources_", "skill_", "support_", "review_")):
             del st.session_state[key]
     st.session_state.answers = {}
     st.session_state.result = None
@@ -233,6 +264,7 @@ def prepare_page() -> None:
 def target_page() -> None:
     answers = st.session_state.answers
     step_header(1, "Votre cible", "Un diagnostic porte sur un seul persona et un seul besoin prioritaire.")
+    st.info("N’indiquez aucun nom, coordonnées, numéro de dossier ou information confidentielle. Le persona, le besoin et l’objectif peuvent être transformés en requêtes de recherche publique externe.")
 
     persona_status = st.radio(
         "Votre persona est-il défini ?",
@@ -261,13 +293,24 @@ def target_page() -> None:
             "Précisez ce persona",
             value=answers.get("custom_profile", ""),
             key="target_custom_profile",
+            max_chars=MAX_PROFILE_LENGTH,
         )
+
+    age_range = st.selectbox(
+        "Quelle est la tranche d’âge dominante de cette cible ? (facultatif)",
+        AGE_RANGE_OPTIONS,
+        index=AGE_RANGE_OPTIONS.index(answers.get("target_age_range"))
+        if answers.get("target_age_range") in AGE_RANGE_OPTIONS else 0,
+        key="target_age_range",
+        help="Cette information affine la recherche documentaire. Elle ne détermine jamais, à elle seule, la plateforme recommandée.",
+    )
 
     priority_need = st.text_input(
         "Quel besoin d’information prioritaire avez-vous identifié chez ce persona ?",
         value=answers.get("priority_need", ""),
         placeholder="Ex. choisir le statut juridique adapté à son activité",
         key="target_priority_need",
+        max_chars=MAX_NEED_LENGTH,
         help="Cette réponse précise le sujet à traiter. Elle ne choisit pas, à elle seule, la plateforme.",
     )
 
@@ -289,6 +332,7 @@ def target_page() -> None:
     preferred_network = None
     sources: list[str] = []
     evidence_quality = None
+    custom_source_details = ""
     if network_knowledge == "Oui":
         networks = select_many(
             "Quels réseaux utilise-t-il pour rechercher cette information ?",
@@ -330,6 +374,15 @@ def target_page() -> None:
                 horizontal=True,
                 key="target_evidence_quality",
             )
+            custom_source_details = ""
+            if "Autre source" in sources:
+                custom_source_details = st.text_input(
+                    "Précisez cette autre source",
+                    value=answers.get("custom_source_details", ""),
+                    placeholder="Nom, lien ou date de la source",
+                    key="target_custom_source_details",
+                    max_chars=MAX_SOURCE_DETAIL_LENGTH,
+                )
         elif has_source == "Non":
             sources = ["Aucune source"]
             st.error("Vérifiez le profil de la cible à l’aide d’une source récente avant de continuer.")
@@ -353,6 +406,8 @@ def target_page() -> None:
             errors.append("Précisez le persona à analyser.")
         if not priority_need.strip():
             errors.append("Précisez le besoin d’information prioritaire du persona.")
+        if contains_sensitive_pattern(f"{custom_profile} {priority_need} {custom_source_details}"):
+            errors.append("Retirez les coordonnées, identifiants ou données de dossier des champs libres.")
         if not network_knowledge:
             errors.append("Indiquez si les réseaux utilisés par ce persona sont connus.")
         elif network_knowledge == OUT_OF_SCOPE_NETWORK:
@@ -366,6 +421,8 @@ def target_page() -> None:
                 errors.append("Indiquez une source permettant de confirmer les réseaux utilisés.")
             if evidence_quality != "Oui":
                 errors.append("Confirmez que les informations sont récentes et fiables.")
+            if "Autre source" in sources and not custom_source_details.strip():
+                errors.append("Précisez l’autre source utilisée.")
         if errors:
             for error in errors:
                 st.error(error)
@@ -375,11 +432,14 @@ def target_page() -> None:
                 "q2": [profile],
                 "custom_profile": custom_profile.strip(),
                 "priority_need": priority_need.strip(),
+                "target_age_range": age_range,
                 "q4": networks,
                 "q4_priority": preferred_network,
                 "q5": sources,
                 "q5_quality": evidence_quality,
+                "custom_source_details": custom_source_details.strip(),
             })
+            st.session_state["review_privacy_confirmation"] = False
             next_screen("objective")
 
 
@@ -404,6 +464,7 @@ def objective_page() -> None:
                 "Précisez votre objectif",
                 value=answers.get("custom_objective", ""),
                 key="objective_custom",
+                max_chars=MAX_OBJECTIVE_LENGTH,
             )
         st.caption("Choisissez un indicateur directement lié à l’objectif, puis précisez le résultat attendu et le délai.")
         c1, c2, c3 = st.columns(3)
@@ -428,6 +489,7 @@ def objective_page() -> None:
                 value=answers.get("target", ""),
                 placeholder="Ex. 10",
                 key="objective_target",
+                max_chars=24,
             )
         with c3:
             deadline = st.text_input(
@@ -435,6 +497,7 @@ def objective_page() -> None:
                 value=answers.get("deadline", ""),
                 placeholder="Ex. 8 mois",
                 key="objective_deadline",
+                max_chars=24,
             )
         if indicator_choice == "Autre indicateur":
             indicator = st.text_input(
@@ -444,6 +507,7 @@ def objective_page() -> None:
                 ),
                 placeholder="Ex. demandes de devis",
                 key="objective_custom_indicator",
+                max_chars=MAX_INDICATOR_LENGTH,
             )
         else:
             indicator = indicator_choice or ""
@@ -457,13 +521,15 @@ def objective_page() -> None:
             errors.append("Définissez votre objectif avant de continuer.")
         if objective == "Autre" and not custom_objective.strip():
             errors.append("Précisez votre objectif.")
+        if contains_sensitive_pattern(f"{custom_objective} {indicator}"):
+            errors.append("Retirez les coordonnées, identifiants ou données de dossier des champs libres.")
         if objective != "Non défini":
             if not indicator.strip() or not target.strip() or not deadline.strip():
                 errors.append("Renseignez l’indicateur, le résultat attendu et l’échéance.")
-            elif not any(character.isdigit() for character in target):
-                errors.append("Indiquez un résultat attendu chiffré.")
-            elif not any(character.isdigit() for character in deadline):
-                errors.append("Indiquez une échéance précise, par exemple « 8 mois ».")
+            elif not validate_target_value(target):
+                errors.append("Indiquez une valeur numérique strictement positive, par exemple « 10 » ou « 30% ».")
+            elif not validate_deadline_value(deadline):
+                errors.append("Indiquez une durée positive avec son unité, par exemple « 8 mois », ou une date future.")
         if errors:
             for error in errors:
                 st.error(error)
@@ -476,6 +542,7 @@ def objective_page() -> None:
                 "target": target.strip(),
                 "deadline": deadline.strip(),
             })
+            st.session_state["review_privacy_confirmation"] = False
             next_screen("resources")
 
 
@@ -567,29 +634,47 @@ def resources_page() -> None:
                 "Précisez l’autre responsable",
                 value=answers.get("custom_pilot", ""),
                 key="resources_custom_pilot",
+                max_chars=MAX_PILOT_LENGTH,
             ).strip()
     elif has_pilot == "Non":
         pilots = [NO_PILOT]
 
-    skills_to_strengthen = [skill for skill, level in competencies.items() if level != "Autonome"]
+    operational_skills: dict[str, str] = {}
+    support_by_skill: dict[str, dict] = {}
     support: list[str] = []
     support_confirmed: dict[str, str] = {}
-    if skills_to_strengthen:
-        support = select_many(
-            "Comment comptez-vous acquérir ou renforcer ces compétences ?",
-            APP_SUPPORT_OPTIONS,
-            answers.get("q12", []),
-            "resources_support",
-        )
-        for solution in support:
-            saved_confirmation = answers.get("q12_confirmed", {}).get(solution)
-            support_confirmed[solution] = st.radio(
-                SUPPORT_CONFIRMATION_LABELS[solution],
+    for skill, level in competencies.items():
+        if level == "Notions":
+            saved_operational = answers.get("q9_operational", {}).get(skill)
+            operational_skills[skill] = st.radio(
+                f"Votre niveau actuel en « {skill} » permet-il déjà de produire un contenu simple et correct ?",
                 ["Oui", "Non"],
-                index=["Oui", "Non"].index(saved_confirmation) if saved_confirmation in {"Oui", "Non"} else None,
+                index=["Oui", "Non"].index(saved_operational) if saved_operational in {"Oui", "Non"} else None,
                 horizontal=True,
-                key=f"support_confirmation_{solution}",
+                key=f"skill_operational_{skill}",
             )
+
+        if level != "Autonome":
+            saved_item = answers.get("q12_by_skill", {}).get(skill, {})
+            support_options = ["Aucun appui prévu"] + APP_SUPPORT_OPTIONS
+            solution = st.selectbox(
+                f"Quelle solution est prévue pour « {skill} » ?",
+                support_options,
+                index=support_options.index(saved_item.get("solution")) if saved_item.get("solution") in support_options else 0,
+                key=f"support_solution_{skill}",
+            )
+            confirmed = "Non"
+            if solution != "Aucun appui prévu":
+                confirmed = st.radio(
+                    SUPPORT_CONFIRMATION_LABELS[solution],
+                    ["Oui", "Non"],
+                    index=["Oui", "Non"].index(saved_item.get("confirmed")) if saved_item.get("confirmed") in {"Oui", "Non"} else None,
+                    horizontal=True,
+                    key=f"support_confirmation_{skill}",
+                )
+                support.append(solution)
+                support_confirmed[solution] = "Oui" if support_confirmed.get(solution) == "Oui" or confirmed == "Oui" else "Non"
+            support_by_skill[skill] = {"solution": solution, "confirmed": confirmed}
 
     has_cost = st.radio(
         "Les solutions ou le matériel prévus entraînent-ils une dépense ?",
@@ -629,7 +714,11 @@ def resources_page() -> None:
             errors.append("Indiquez qui pilotera la communication.")
         if "Autre" in pilots and not custom_pilot:
             errors.append("Précisez l’autre responsable de la communication.")
-        if any(value is None for value in support_confirmed.values()):
+        if contains_sensitive_pattern(custom_pilot):
+            errors.append("Retirez les coordonnées ou informations confidentielles du champ responsable.")
+        if any(level == "Notions" and operational_skills.get(skill) is None for skill, level in competencies.items()):
+            errors.append("Indiquez si chaque compétence au niveau « Notions » permet déjà de produire le contenu attendu.")
+        if any(item.get("solution") != "Aucun appui prévu" and item.get("confirmed") not in {"Oui", "Non"} for item in support_by_skill.values()):
             errors.append("Confirmez si chaque solution choisie est réellement prévue.")
         if has_cost is None:
             errors.append("Indiquez si une dépense est prévue.")
@@ -644,16 +733,19 @@ def resources_page() -> None:
                 "q14": formats,
                 "q16": on_camera,
                 "q9": competencies,
+                "q9_operational": operational_skills,
                 "q10": equipment,
                 "q11": pilots,
                 "custom_pilot": custom_pilot,
-                "q12": support,
+                "q12": list(dict.fromkeys(support)),
                 "q12_confirmed": support_confirmed,
+                "q12_by_skill": support_by_skill,
                 "q13_has_cost": has_cost,
                 "q13_budget_validated": budget_validated,
                 "q15": None,
             })
             st.session_state.return_to_review = False
+            st.session_state["review_privacy_confirmation"] = False
             navigate("review")
 
 
@@ -671,9 +763,11 @@ def review_page() -> None:
     review_card("Votre cible", [
         ("Persona :", persona),
         ("Besoin prioritaire :", answers.get("priority_need", "Non renseigné")),
+        ("Tranche d’âge dominante :", answers.get("target_age_range") or "Je ne sais pas"),
         ("Réseaux observés :", join_values(observed_networks) if observed_networks else "Non identifiés"),
         ("Réseau le plus souvent utilisé :", answers.get("q4_priority") or "Non renseigné"),
-        ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Recherche CAP et référentiel interne"),
+        ("Sources :", join_values(answers.get("q5", [])) if answers.get("q5") else "Référentiel CAP"),
+        ("Précision de la source :", answers.get("custom_source_details") or "Sans objet"),
         ("Informations récentes et fiables :", answers.get("q5_quality") or "Sans objet"),
     ])
     if st.button("Modifier la cible", type="secondary", key="edit_target"):
@@ -693,8 +787,8 @@ def review_page() -> None:
 
     skill_summary = " · ".join(f"{skill} : {level}" for skill, level in answers.get("q9", {}).items())
     support_summary = " · ".join(
-        f"{solution} : {'prévu' if answers.get('q12_confirmed', {}).get(solution) == 'Oui' else 'non confirmé'}"
-        for solution in answers.get("q12", [])
+        f"{skill} : {item.get('solution', 'Aucun appui prévu')} ({'prévu' if item.get('confirmed') == 'Oui' else 'non confirmé'})"
+        for skill, item in answers.get("q12_by_skill", {}).items()
     )
     budget = "Aucune dépense prévue" if answers.get("q13_has_cost") == "Non" else (
         "Budget validé" if answers.get("q13_budget_validated") == "Oui" else "Budget non validé"
@@ -722,14 +816,37 @@ def review_page() -> None:
         st.session_state.return_to_review = True
         navigate("resources")
 
+    st.markdown("### Personnalisation de la synthèse")
+    cabinet_name = st.text_input(
+        "Quel est le nom de votre cabinet ?",
+        value=answers.get("cabinet_name", ""),
+        placeholder="Ex. Foeco",
+        max_chars=MAX_CABINET_NAME_LENGTH,
+        key="review_cabinet_name",
+        help="Ce nom personnalise uniquement la synthèse PDF et son nom de fichier. Il n’est pas transmis au moteur de recherche.",
+    )
+
+    privacy_confirmed = st.checkbox(
+        "Je confirme que les champs utilisés pour l’analyse ne contiennent aucune donnée nominative, confidentielle ou issue d’un dossier client.",
+        value=False,
+        key="review_privacy_confirmation",
+    )
+    st.caption("Le nom du cabinet sert uniquement à personnaliser le PDF. Seuls des termes génériques issus du persona, du besoin, de la tranche d’âge facultative et de l’objectif peuvent être transmis à Tavily pour interroger des sources publiques. CAP ne constitue aucun fichier de prospects.")
+
     st.markdown('<div class="cap-nav-spacer"></div>', unsafe_allow_html=True)
     left, middle, right = st.columns([1, 1.4, 1])
     with middle:
         if st.button("Valider et obtenir le résultat", type="primary", width="stretch"):
-            with st.spinner("Recherche publique et analyse des plateformes en cours…"):
-                external_research = cached_external_research(dict(answers))
-                st.session_state.result = evaluate(answers, external_research)
-            navigate("result")
+            if not cabinet_name.strip():
+                st.error("Indiquez le nom du cabinet afin de personnaliser la synthèse.")
+            elif not privacy_confirmed:
+                st.error("Confirmez l’absence de données nominatives ou confidentielles avant de lancer l’analyse.")
+            else:
+                answers["cabinet_name"] = cabinet_name.strip()
+                with st.spinner("Recherche publique et analyse des plateformes en cours…"):
+                    research_result = external_research(dict(answers))
+                    st.session_state.result = evaluate(answers, research_result)
+                navigate("result")
 
 
 def result_page() -> None:
@@ -764,10 +881,12 @@ def result_page() -> None:
     )
 
     research = result.get("external_research", {})
-    if research.get("status") == "live":
-        st.caption(f"Recherche publique réalisée le {research.get('searched_at', '')}. Les sources et limites figurent dans la synthèse.")
+    if research.get("status") == "complet":
+        st.caption(f"Recherche publique complète réalisée le {research.get('searched_at', '')}. Les sources et limites figurent dans la synthèse.")
+    elif research.get("status") in {"partiel", "insuffisant"}:
+        st.warning(research.get("note", "La recherche externe est insuffisante et n’a pas modifié la recommandation."))
     elif research:
-        st.warning("La recherche publique n’était pas disponible. CAP a terminé l’analyse avec les données du cabinet et son référentiel interne.")
+        st.info(research.get("note", "La recherche externe n’est pas configurée. CAP utilise son référentiel interne."))
 
     pdf_bytes = build_summary_pdf(answers, result)
     st.write("")
@@ -777,7 +896,7 @@ def result_page() -> None:
             st.download_button(
                 "Télécharger ma synthèse",
                 data=pdf_bytes,
-                file_name="synthese_CAP.pdf",
+                file_name=_summary_filename(answers),
                 mime="application/pdf",
                 type="primary",
                 width="stretch",
@@ -800,7 +919,7 @@ def result_page() -> None:
             st.download_button(
                 "Télécharger ma synthèse",
                 data=pdf_bytes,
-                file_name="synthese_CAP.pdf",
+                file_name=_summary_filename(answers),
                 mime="application/pdf",
                 type="primary",
                 width="stretch",
@@ -811,7 +930,7 @@ def result_page() -> None:
     with middle:
         if st.button("Recommencer", type="secondary", width="stretch"):
             reset_diagnostic()
-    st.markdown('<p class="cap-note cap-center">Les réponses sont supprimées à la fermeture de la session.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="cap-note cap-center">Les réponses restent dans la session active de l’application. CAP n’utilise aucun cache global des champs libres.</p>', unsafe_allow_html=True)
 
 
 inject_css()

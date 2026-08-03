@@ -33,6 +33,15 @@ SOURCE_OPTIONS = [
 
 EVIDENCE_QUALITY_OPTIONS = ["Oui", "Non"]
 
+AGE_RANGE_OPTIONS = [
+    "Je ne sais pas",
+    "Moins de 25 ans",
+    "25 à 34 ans",
+    "35 à 44 ans",
+    "45 à 54 ans",
+    "55 ans et plus",
+]
+
 OBJECTIVE_OPTIONS = [
     "Visibilité et notoriété",
     "Acquisition",
@@ -181,27 +190,28 @@ OBJECTIVE_PRIORITY_PLATFORMS = {
 # comportementale supplémentaire à l'utilisateur.
 NEED_CATEGORY_KEYWORDS = {
     "explication approfondie": [
-        "statut", "société", "sasu", "eurl", "choisir", "compar", "transform",
-        "passer de", "fiscal", "juridique", "patrimoine", "transmission", "retraite",
-        "rentabilité", "financement", "business plan", "décision", "arbitr",
+        "statut", "société", "sasu", "eurl", "choisir", "compar*", "transform*",
+        "passer de", "fiscal*", "juridique", "patrimoine", "transmission", "retraite",
+        "rentabilité", "financement", "business plan", "décision", "arbitr*",
+        "rémunération", "remuneration", "salaire", "dividende", "revenu",
     ],
     "démarche pratique": [
-        "comment", "étape", "démarche", "formal", "procédure", "checklist", "liste",
-        "créer", "immatric", "déclar", "mettre en place", "organiser", "outil",
+        "comment", "étape", "démarche", "formal*", "procédure", "checklist", "liste",
+        "créer", "immatric*", "déclar*", "mettre en place", "organiser", "outil",
     ],
     "actualité et échéance": [
         "actualité", "réforme", "nouveau", "échéance", "date", "obligation", "loi",
         "déclaration", "calendrier", "taux", "seuil", "changement",
     ],
     "confiance et réassurance": [
-        "peur", "risque", "erreur", "éviter", "sécur", "confiance", "rassur",
+        "peur", "risque", "erreur", "éviter", "sécur*", "confiance", "rassur*",
         "idée reçue", "comprendre", "pourquoi", "accompagnement",
     ],
     "recrutement": [
-        "recrut", "candidat", "emploi", "altern", "stage", "collaborateur", "talent",
+        "recrut*", "candidat", "emploi", "altern*", "stage", "collaborateur", "talent",
     ],
     "fidélisation": [
-        "fidél", "client existant", "suivi", "relation client", "rappel", "accompagner dans le temps",
+        "fidél*", "client existant", "suivi", "relation client", "rappel", "accompagner dans le temps",
     ],
     "découverte": [
         "connaître", "découvrir", "visibilité", "notoriété", "présenter", "sensibiliser",
@@ -277,3 +287,35 @@ FORMAT_REQUIRED_SKILLS = {
 
 VIDEO_FORMATS = {"Vidéo courte", "Vidéo longue", "Live"}
 VISUAL_FORMATS = {"Photo", "Carrousel", "Story"}
+
+# Limites de saisie : elles protègent la synthèse et évitent la transmission
+# accidentelle de textes trop détaillés à la recherche documentaire.
+MAX_PROFILE_LENGTH = 100
+MAX_NEED_LENGTH = 240
+MAX_OBJECTIVE_LENGTH = 160
+MAX_INDICATOR_LENGTH = 120
+MAX_SOURCE_DETAIL_LENGTH = 180
+MAX_PILOT_LENGTH = 100
+MAX_CABINET_NAME_LENGTH = 80
+
+# Repères opérationnels. Ils ne constituent pas des normes universelles : ils
+# servent uniquement à vérifier la cohérence du scénario avec le plan de charge.
+PLATFORM_MINIMUM_HOURS = {
+    "Facebook": 2.0,
+    "Instagram": 2.0,
+    "TikTok": 2.0,
+    "YouTube": 6.0,
+}
+PLATFORM_RELAY_EXTRA_HOURS = {
+    "Facebook": 1.0,
+    "Instagram": 1.5,
+    "TikTok": 2.0,
+    "YouTube": 3.0,
+}
+TIME_CAPACITY_UPPER_HOURS = {
+    "Aucun temps disponible": 0.0,
+    "Moins de 2 h": 1.9,
+    "2 à 5 h": 5.0,
+    "6 à 10 h": 10.0,
+    "Plus de 10 h": 20.0,
+}

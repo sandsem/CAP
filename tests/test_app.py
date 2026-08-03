@@ -39,7 +39,8 @@ class InterfaceRegressionTests(unittest.TestCase):
         self.assertIn('("Réseaux observés :",', self.source)
 
     def test_external_research_runs_inside_analysis_without_new_screen(self):
-        self.assertIn("cached_external_research", self.source)
+        self.assertIn("external_research", self.source)
+        self.assertNotIn("@st.cache_data", self.source)
         self.assertIn("research_platforms", self.source)
         self.assertNotIn('"research":', self.source)
 
@@ -53,6 +54,29 @@ class InterfaceRegressionTests(unittest.TestCase):
 
     def test_reference_base_is_not_announced_in_the_questionnaire(self):
         self.assertNotIn("CAP utilisera sa base de référence", self.source)
+
+    def test_privacy_confirmation_and_provider_notice_are_present(self):
+        self.assertIn("review_privacy_confirmation", self.source)
+        self.assertIn("transmis à Tavily", self.source)
+        self.assertIn("aucun cache global", self.source)
+
+    def test_cabinet_name_and_personalized_filename_are_present(self):
+        self.assertIn("Quel est le nom de votre cabinet ?", self.source)
+        self.assertIn("synthese_CAP_", self.source)
+        self.assertIn("_summary_filename", self.source)
+
+    def test_optional_age_range_is_present(self):
+        self.assertIn("tranche d’âge dominante", self.source)
+
+    def test_internal_decision_vocabulary_is_removed_from_pdf(self):
+        self.assertNotIn("Besoin interprété", self.pdf_source)
+        self.assertNotIn("Élément déterminant", self.pdf_source)
+        self.assertNotIn("Informations publiques mobilisées", self.pdf_source)
+        self.assertIn("Vérification externe", self.pdf_source)
+
+    def test_privacy_confirmation_is_reset(self):
+        self.assertIn('"review_"', self.source)
+        self.assertIn('st.session_state["review_privacy_confirmation"] = False', self.source)
 
 
 @unittest.skipIf(AppTest is None, "Streamlit n’est pas installé dans cet environnement")

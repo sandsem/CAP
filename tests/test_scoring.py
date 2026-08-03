@@ -16,10 +16,13 @@ def base_answers():
         "q2": ["Profession libérale / Freelance"],
         "custom_profile": "",
         "priority_need": "Choisir le statut juridique adapté à son activité",
+        "target_age_range": "35 à 44 ans",
+        "cabinet_name": "Cabinet Test",
         "q4": ["Instagram", "TikTok"],
         "q4_priority": "Instagram",
         "q5": ["Entretiens", "Données clients"],
         "q5_quality": "Oui",
+        "custom_source_details": "",
         "q6": "Acquisition",
         "custom_objective": "",
         "indicator": "Demandes de contact",
@@ -32,10 +35,12 @@ def base_answers():
             "Rédaction / script": "Autonome",
             "Création de visuels": "Autonome",
         },
+        "q9_operational": {},
         "q10": ["Smartphone récent", "Ordinateur", "Connexion internet stable"],
         "q11": ["L’expert-comptable"],
         "q12": [],
         "q12_confirmed": {},
+        "q12_by_skill": {},
         "q13_has_cost": "Non",
         "q13_budget_validated": "Sans objet",
         "q15": None,
@@ -45,7 +50,8 @@ def base_answers():
 def fake_research(signals=None):
     signals = signals or {}
     return {
-        "status": "live",
+        "status": "complet",
+        "can_influence": True,
         "searched_at": "03/08/2026 00:30",
         "note": "Signal documentaire public.",
         "sources": [],
@@ -134,6 +140,52 @@ class StrategicTests(unittest.TestCase):
         self.assertEqual(result["winner"], "TikTok")
         self.assertEqual(result["tie_break"], "recherche externe")
 
+
+    def test_preferred_observed_network_is_used_when_platforms_are_otherwise_close(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram", "TikTok"],
+            "q4_priority": "TikTok",
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Carrousel", "Vidéo courte"],
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Création de visuels": "Autonome",
+                "Montage vidéo": "Autonome",
+            },
+        })
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "TikTok")
+        self.assertEqual(result["tie_break"], "données de cible")
+
+    def test_mixed_need_does_not_use_keyword_order_as_hidden_tie_break(self):
+        analysis = classify_need("Recruter et gagner en visibilité")
+        self.assertEqual(analysis["category"], "général")
+        self.assertGreaterEqual(len(analysis["matched_categories"]), 2)
+
+    def test_single_observed_network_is_treated_as_preferred_even_without_stale_field(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["TikTok"],
+            "q4_priority": None,
+            "q5": ["Entretiens"],
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Carrousel", "Vidéo courte"],
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Création de visuels": "Autonome",
+                "Montage vidéo": "Autonome",
+            },
+        })
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "TikTok")
+
     def test_cap_always_returns_one_primary_platform(self):
         answers = base_answers()
         answers.update({
@@ -213,6 +265,34 @@ class StrategicTests(unittest.TestCase):
         answers["deadline"] = "0 mois"
         self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
 
+
+    def test_negative_target_is_rejected(self):
+        answers = base_answers()
+        answers["target"] = "-5"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_deadline_without_unit_is_rejected(self):
+        answers = base_answers()
+        answers["deadline"] = "2026"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_ambiguous_deadline_is_rejected(self):
+        answers = base_answers()
+        answers["deadline"] = "demain 2"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_sensitive_identifier_is_rejected(self):
+        answers = base_answers()
+        answers["priority_need"] = "Dossier client 123456 à analyser"
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_other_source_requires_details(self):
+        answers = base_answers()
+        answers["q5"] = ["Autre source"]
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+        answers["custom_source_details"] = "Étude sectorielle 2026"
+        self.assertEqual(strategic_control(answers)["status"], "Choix validé")
+
     def test_custom_objective_is_allowed_when_described(self):
         answers = base_answers()
         answers.update({"q6": "Autre", "custom_objective": "Développer les partenariats locaux"})
@@ -231,6 +311,24 @@ class StrategicTests(unittest.TestCase):
     def test_special_network_answers_are_exclusive(self):
         answers = base_answers()
         answers["q4"] = ["TikTok", "Je ne sais pas"]
+        self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_sensitive_data_in_any_free_text_field_blocks(self):
+        fields = [
+            ("custom_objective", "Écrire à contact@example.com"),
+            ("custom_source_details", "Dossier client 123456"),
+            ("custom_pilot", "+33 6 12 34 56 78"),
+            ("custom_indicator", "SIRET 12345678901234"),
+        ]
+        for field, value in fields:
+            with self.subTest(field=field):
+                answers = base_answers()
+                answers[field] = value
+                self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
+
+    def test_oversized_free_text_blocks(self):
+        answers = base_answers()
+        answers["priority_need"] = "x" * 241
         self.assertEqual(strategic_control(answers)["status"], "Recommandation impossible")
 
 
@@ -269,7 +367,9 @@ class FeasibilityTests(unittest.TestCase):
     def test_missing_skill_with_confirmed_training_is_orange(self):
         answers = base_answers()
         answers["q9"]["Création de visuels"] = "À acquérir"
-        answers.update({"q12": ["Formation"], "q12_confirmed": {"Formation": "Oui"}})
+        answers["q12_by_skill"] = {
+            "Création de visuels": {"solution": "Formation", "confirmed": "Oui"}
+        }
         result = evaluate(answers)
         self.assertEqual(self._row(result, "Formats et compétences")["status"], "orange")
 
@@ -289,11 +389,29 @@ class FeasibilityTests(unittest.TestCase):
         self.assertEqual(result["winner"], "Instagram")
         self.assertEqual(self._row(result, "Formats et compétences")["status"], "rouge")
 
-    def test_notions_require_preparation(self):
+    def test_notions_operational_do_not_delay_launch(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+        })
+        answers["q9"]["Création de visuels"] = "Notions"
+        answers["q9_operational"] = {"Création de visuels": "Oui"}
+        result = evaluate(answers)
+        self.assertEqual(result["winner"], "Instagram")
+        self.assertEqual(self._row(result, "Formats et compétences")["status"], "vert")
+
+    def test_notions_not_operational_require_preparation(self):
         answers = base_answers()
         answers["q9"]["Création de visuels"] = "Notions"
+        answers["q9_operational"] = {"Création de visuels": "Non"}
         result = evaluate(answers)
-        self.assertEqual(result["feasibility_label"], "Lancement à préparer")
+        self.assertEqual(self._row(result, "Formats et compétences")["status"], "orange")
 
     def test_no_time_postpones_without_changing_clear_platform(self):
         answers = base_answers()
@@ -323,6 +441,36 @@ class FeasibilityTests(unittest.TestCase):
         self.assertNotIn("Ring light", material["observation"])
         self.assertNotIn("Caméra", material["observation"])
 
+    def test_carrousel_can_be_created_with_computer_without_camera(self):
+        answers = base_answers()
+        answers.update({
+            "q14": ["Carrousel", "Publication texte"],
+            "q10": ["Ordinateur", "Connexion internet stable"],
+            "q9": {
+                "Rédaction / script": "Autonome",
+                "Création de visuels": "Autonome",
+            },
+        })
+        result = evaluate(answers)
+        self.assertNotEqual(self._row(result, "Matériel")["status"], "rouge")
+
+    def test_complement_is_not_proposed_until_primary_is_ready(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Start-up"],
+            "priority_need": "Faire connaître le cabinet auprès de nouveaux entrepreneurs",
+            "q4": ["Instagram", "TikTok"],
+            "q4_priority": "Instagram",
+            "q5": ["Entretiens"],
+            "q6": "Visibilité et notoriété",
+            "indicator": "Portée des publications",
+            "q14": ["Photo"],
+            "q8": "6 à 10 h",
+        })
+        result = evaluate(answers)
+        self.assertEqual(result["feasibility_label"], "Lancement à préparer")
+        self.assertIsNone(result["complementary_platform"])
+
     def test_unvalidated_budget_is_red(self):
         answers = base_answers()
         answers.update({"q13_has_cost": "Oui", "q13_budget_validated": "Non"})
@@ -348,6 +496,40 @@ class FeasibilityTests(unittest.TestCase):
         self.assertEqual(responsible["status"], "vert")
         self.assertIn("La secrétaire du cabinet", responsible["observation"])
         self.assertIn("La secrétaire du cabinet", result["actors"])
+
+
+class PlainLanguageAndPriorityTests(unittest.TestCase):
+    def test_reliable_observations_come_before_external_search_when_strategy_is_close(self):
+        answers = base_answers()
+        answers.update({
+            "q2": ["Dirigeant TPE-PME"],
+            "priority_need": "Atteindre un meilleur niveau de rémunération",
+            "q4": ["TikTok", "YouTube"],
+            "q4_priority": "Je ne sais pas",
+            "q5": ["Statistiques", "Questionnaire", "Étude sectorielle"],
+            "q5_quality": "Oui",
+            "q6": "Acquisition",
+            "indicator": "Rendez-vous obtenus",
+            "q14": ["Publication texte", "Photo", "Vidéo courte", "Story"],
+            "q9": {
+                "Rédaction / script": "À acquérir",
+                "Création de visuels": "Notions",
+                "Montage vidéo": "Notions",
+            },
+        })
+        result = evaluate(answers, fake_research({"Facebook": "fort", "TikTok": "modéré", "YouTube": "modéré"}))
+        self.assertIn(result["winner"], {"TikTok", "YouTube"})
+        self.assertNotEqual(result["winner"], "Facebook")
+
+    def test_selection_reasons_do_not_expose_internal_vocabulary(self):
+        result = evaluate(base_answers())
+        text = " ".join(result["selection_reasons"] + list(result["non_priority_reasons"].values())).lower()
+        for forbidden in ("règle stable", "référentiel du persona", "famille unique", "profondeur stratégique"):
+            self.assertNotIn(forbidden, text)
+
+    def test_remuneration_need_is_classified_as_detailed_explanation(self):
+        analysis = classify_need("Atteindre un meilleur niveau de rémunération")
+        self.assertEqual(analysis["category"], "explication approfondie")
 
 
 if __name__ == "__main__":
